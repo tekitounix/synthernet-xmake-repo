@@ -1,12 +1,24 @@
 {
   "CONFIGS": {
+    "stm32f103c8": {
+      "core": "cortex-m3",
+      "flash": "64K",
+      "ram": "20K",
+      "flash_origin": "0x08000000",
+      "ram_origin": "0x20000000",
+      "vendor": "st",
+      "openocd_target": "stm32f1x",
+      "device_name": "STM32F103C8"
+    },
     "stm32f103rc": {
       "core": "cortex-m3",
       "flash": "256K",
       "ram": "48K",
       "flash_origin": "0x08000000",
       "ram_origin": "0x20000000",
-      "vendor": "st"
+      "vendor": "st",
+      "openocd_target": "stm32f1x",
+      "device_name": "STM32F103RC"
     },
     "stm32f401re": {
       "core": "cortex-m4f",
@@ -14,7 +26,21 @@
       "ram": "96K",
       "flash_origin": "0x08000000",
       "ram_origin": "0x20000000",
-      "vendor": "st"
+      "vendor": "st",
+      "openocd_target": "stm32f4x",
+      "device_name": "STM32F401RE",
+      "renode_repl": "lib/umiport/renode/stm32f4_test.repl"
+    },
+    "stm32f405rg": {
+      "core": "cortex-m4f",
+      "flash": "1M",
+      "ram": "128K",
+      "flash_origin": "0x08000000",
+      "ram_origin": "0x20000000",
+      "vendor": "st",
+      "openocd_target": "stm32f4x",
+      "device_name": "STM32F405RG",
+      "renode_repl": "lib/umiport/renode/stm32f4_test.repl"
     },
     "stm32f407vg": {
       "core": "cortex-m4f",
@@ -22,7 +48,10 @@
       "ram": "128K",
       "flash_origin": "0x08000000",
       "ram_origin": "0x20000000",
-      "vendor": "st"
+      "vendor": "st",
+      "openocd_target": "stm32f4x",
+      "device_name": "STM32F407VG",
+      "renode_repl": "lib/umiport/renode/stm32f4_test.repl"
     },
     "stm32f411ve": {
       "core": "cortex-m4f",
@@ -30,7 +59,31 @@
       "ram": "128K",
       "flash_origin": "0x08000000",
       "ram_origin": "0x20000000",
-      "vendor": "st"
+      "vendor": "st",
+      "openocd_target": "stm32f4x",
+      "device_name": "STM32F411VE",
+      "renode_repl": "lib/umiport/renode/stm32f4_test.repl"
+    },
+    "stm32f446re": {
+      "core": "cortex-m4f",
+      "flash": "512K",
+      "ram": "128K",
+      "flash_origin": "0x08000000",
+      "ram_origin": "0x20000000",
+      "vendor": "st",
+      "openocd_target": "stm32f4x",
+      "device_name": "STM32F446RE",
+      "renode_repl": "lib/umiport/renode/stm32f4_test.repl"
+    },
+    "stm32f746zg": {
+      "core": "cortex-m7f",
+      "flash": "1M",
+      "ram": "320K",
+      "flash_origin": "0x08000000",
+      "ram_origin": "0x20000000",
+      "vendor": "st",
+      "openocd_target": "stm32f7x",
+      "device_name": "STM32F746ZG"
     },
     "stm32h533re": {
       "core": "cortex-m33f",
@@ -38,7 +91,9 @@
       "ram": "256K",
       "flash_origin": "0x08000000",
       "ram_origin": "0x20000000",
-      "vendor": "st"
+      "vendor": "st",
+      "openocd_target": "stm32h5x",
+      "device_name": "STM32H533RE"
     },
     "stm32h533retx": {
       "core": "cortex-m33f",
@@ -46,7 +101,19 @@
       "ram": "256K",
       "flash_origin": "0x08000000",
       "ram_origin": "0x20000000",
-      "vendor": "st"
+      "vendor": "st",
+      "openocd_target": "stm32h5x",
+      "device_name": "STM32H533RETx"
+    },
+    "stm32h743zi": {
+      "core": "cortex-m7f",
+      "flash": "2M",
+      "ram": "1M",
+      "flash_origin": "0x08000000",
+      "ram_origin": "0x20000000",
+      "vendor": "st",
+      "openocd_target": "stm32h7x",
+      "device_name": "STM32H743ZI"
     }
   }
 }

@@ -25,203 +25,79 @@ package("arm-embedded")
     
     
     on_load(function (package)
-        -- Install rule and task definitions to user's xmake directory during on_load
+        -- Install rule and task definitions to user's xmake directory.
+        -- Always overwrite to ensure package source is the single source of truth.
+        -- This guarantees `xmake require --force` cleanly updates all installed files.
+        --
+        -- Dynamic scan: walks source directories so new files are automatically included.
         import("core.base.global")
-        
-        -- Install embedded rule and database modules
-        local user_rule_dir = path.join(global.directory(), "rules", "embedded")
-        local user_database_dir = path.join(user_rule_dir, "database")
-        os.mkdir(user_rule_dir)
-        os.mkdir(user_database_dir)
-        
-        -- Copy main rule file
-        local rule_content = io.readfile(path.join(os.scriptdir(), "rules", "embedded", "xmake.lua"))
-        if rule_content then
-            local dest_file = path.join(user_rule_dir, "xmake.lua")
-            
-            local need_update = true
-            if os.isfile(dest_file) then
-                local dst_content = io.readfile(dest_file)
-                if rule_content == dst_content then
-                    need_update = false
+
+        local src = os.scriptdir()
+        local dest_root = global.directory()
+
+        -- Source rule name → installed rule name mapping
+        -- (only entries that differ need to be listed)
+        local rule_name_map = {
+            vscode = "embedded.vscode",
+            compdb = "embedded.compdb"
+        }
+
+        -- Helper: recursively copy all files under src_dir to dest_dir
+        local function sync_tree(src_dir, dest_dir)
+            if not os.isdir(src_dir) then return 0 end
+            local count = 0
+            for _, f in ipairs(os.files(path.join(src_dir, "**"))) do
+                local rel = path.relative(f, src_dir)
+                local dest_file = path.join(dest_dir, rel)
+                os.mkdir(path.directory(dest_file))
+                io.writefile(dest_file, io.readfile(f))
+                count = count + 1
+            end
+            return count
+        end
+
+        -- 0. Remove known legacy directories from previous versions.
+        -- These were removed or consolidated in the current package structure.
+        -- Keep this list until all developer environments have been updated.
+        local legacy = {
+            rules  = {"embedded.debugger"},                                     -- merged into embedded rule
+            plugins = {"debug", "debugger", "deploy", "emulator", "project", "serve"}  -- unused/redundant
+        }
+        for _, name in ipairs(legacy.rules) do
+            local d = path.join(dest_root, "rules", name)
+            if os.isdir(d) then os.rmdir(d) end
+        end
+        for _, name in ipairs(legacy.plugins) do
+            local d = path.join(dest_root, "plugins", name)
+            if os.isdir(d) then os.rmdir(d) end
+        end
+
+        -- 1. Rules: clean destination then copy from source
+        local rules_src = path.join(src, "rules")
+        if os.isdir(rules_src) then
+            for _, dir in ipairs(os.dirs(path.join(rules_src, "*"))) do
+                local rule_name = path.filename(dir)
+                local dest_name = rule_name_map[rule_name] or rule_name
+                local dest_dir = path.join(dest_root, "rules", dest_name)
+                -- Remove stale files from previous versions before copying
+                if os.isdir(dest_dir) then
+                    os.rmdir(dest_dir)
                 end
-            end
-            
-            if need_update then
-                io.writefile(dest_file, rule_content)
-                print("=> Embedded rule installed to: %s", user_rule_dir)
+                sync_tree(dir, dest_dir)
             end
         end
-        
-        -- Copy database modules (JSON files for new system)
-        local db_files = {"cortex-m.json", "mcu-database.json", "build-options.json", "toolchain-configs.json"}
-        for _, filename in ipairs(db_files) do
-            local content = io.readfile(path.join(os.scriptdir(), "rules", "embedded", "database", filename))
-            if content then
-                io.writefile(path.join(user_database_dir, filename), content)
-            end
-        end
-        
-        -- Copy linker directory
-        local user_linker_dir = path.join(user_rule_dir, "linker")
-        os.mkdir(user_linker_dir)
-        local linker_content = io.readfile(path.join(os.scriptdir(), "rules", "embedded", "linker", "common.ld"))
-        if linker_content then
-            io.writefile(path.join(user_linker_dir, "common.ld"), linker_content)
-        end
-        
-        -- Install VSCode integration rules (rule name: embedded.vscode)
-        local user_vscode_dir = path.join(global.directory(), "rules", "embedded.vscode")
-        os.mkdir(user_vscode_dir)
-        local vscode_content = io.readfile(path.join(os.scriptdir(), "rules", "vscode", "xmake.lua"))
-        if vscode_content then
-            local dest_file = path.join(user_vscode_dir, "xmake.lua")
-            
-            local need_update = true
-            if os.isfile(dest_file) then
-                local dst_content = io.readfile(dest_file)
-                if vscode_content == dst_content then
-                    need_update = false
+
+        -- 2. Plugins: clean destination then copy from source
+        local plugins_src = path.join(src, "plugins")
+        if os.isdir(plugins_src) then
+            for _, dir in ipairs(os.dirs(path.join(plugins_src, "*"))) do
+                local plugin_name = path.filename(dir)
+                local dest_dir = path.join(dest_root, "plugins", plugin_name)
+                -- Remove stale files from previous versions before copying
+                if os.isdir(dest_dir) then
+                    os.rmdir(dest_dir)
                 end
-            end
-            
-            if need_update then
-                io.writefile(dest_file, vscode_content)
-                print("=> VSCode integration rules installed to: %s", user_vscode_dir)
-            end
-        end
-        
-        -- Install host.test rule
-        local user_host_test_dir = path.join(global.directory(), "rules", "host.test")
-        os.mkdir(user_host_test_dir)
-        local host_test_content = io.readfile(path.join(os.scriptdir(), "rules", "host.test", "xmake.lua"))
-        if host_test_content then
-            local dest_file = path.join(user_host_test_dir, "xmake.lua")
-            
-            local need_update = true
-            if os.isfile(dest_file) then
-                local dst_content = io.readfile(dest_file)
-                if host_test_content == dst_content then
-                    need_update = false
-                end
-            end
-            
-            if need_update then
-                io.writefile(dest_file, host_test_content)
-                print("=> Host test rule installed to: %s", user_host_test_dir)
-            end
-        end
-        
-        -- Install embedded.test rule
-        local user_embedded_test_dir = path.join(global.directory(), "rules", "embedded.test")
-        os.mkdir(user_embedded_test_dir)
-        local embedded_test_content = io.readfile(path.join(os.scriptdir(), "rules", "embedded.test", "xmake.lua"))
-        if embedded_test_content then
-            local dest_file = path.join(user_embedded_test_dir, "xmake.lua")
-            
-            local need_update = true
-            if os.isfile(dest_file) then
-                local dst_content = io.readfile(dest_file)
-                if embedded_test_content == dst_content then
-                    need_update = false
-                end
-            end
-            
-            if need_update then
-                io.writefile(dest_file, embedded_test_content)
-                print("=> Embedded test rule installed to: %s", user_embedded_test_dir)
-            end
-        end
-        
-        -- Install flash task
-        local task_content = io.readfile(path.join(os.scriptdir(), "plugins", "flash", "xmake.lua"))
-        if task_content then
-            local user_task_dir = path.join(global.directory(), "plugins", "flash")
-            local user_flash_db_dir = path.join(user_task_dir, "database")
-            local dest_file = path.join(user_task_dir, "xmake.lua")
-            
-            local need_update = true
-            if os.isfile(dest_file) then
-                local dst_content = io.readfile(dest_file)
-                if task_content == dst_content then
-                    need_update = false
-                end
-            end
-            
-            if need_update then
-                os.mkdir(user_task_dir)
-                io.writefile(dest_file, task_content)
-                print("=> Flash task installed to: %s", user_task_dir)
-            end
-            
-            -- Install flash database
-            os.mkdir(user_flash_db_dir)
-            local flash_db_content = io.readfile(path.join(os.scriptdir(), "plugins", "flash", "database", "flash-targets.json"))
-            if flash_db_content then
-                io.writefile(path.join(user_flash_db_dir, "flash-targets.json"), flash_db_content)
-            end
-        end
-        
-        -- Install debug task
-        local debug_content = io.readfile(path.join(os.scriptdir(), "plugins", "debug", "xmake.lua"))
-        if debug_content then
-            local user_debug_dir = path.join(global.directory(), "plugins", "debug")
-            local dest_file = path.join(user_debug_dir, "xmake.lua")
-            
-            local need_update = true
-            if os.isfile(dest_file) then
-                local dst_content = io.readfile(dest_file)
-                if debug_content == dst_content then
-                    need_update = false
-                end
-            end
-            
-            if need_update then
-                os.mkdir(user_debug_dir)
-                io.writefile(dest_file, debug_content)
-                print("=> Debug task installed to: %s", user_debug_dir)
-            end
-        end
-        
-        -- Install test task
-        local test_content = io.readfile(path.join(os.scriptdir(), "plugins", "test", "xmake.lua"))
-        if test_content then
-            local user_test_dir = path.join(global.directory(), "plugins", "test")
-            local dest_file = path.join(user_test_dir, "xmake.lua")
-            
-            local need_update = true
-            if os.isfile(dest_file) then
-                local dst_content = io.readfile(dest_file)
-                if test_content == dst_content then
-                    need_update = false
-                end
-            end
-            
-            if need_update then
-                os.mkdir(user_test_dir)
-                io.writefile(dest_file, test_content)
-                print("=> Test task installed to: %s", user_test_dir)
-            end
-        end
-        
-        -- Install debugger task
-        local debugger_content = io.readfile(path.join(os.scriptdir(), "plugins", "debugger", "xmake.lua"))
-        if debugger_content then
-            local user_debugger_dir = path.join(global.directory(), "plugins", "debugger")
-            local dest_file = path.join(user_debugger_dir, "xmake.lua")
-            
-            local need_update = true
-            if os.isfile(dest_file) then
-                local dst_content = io.readfile(dest_file)
-                if debugger_content == dst_content then
-                    need_update = false
-                end
-            end
-            
-            if need_update then
-                os.mkdir(user_debugger_dir)
-                io.writefile(dest_file, debugger_content)
-                print("=> Debugger task installed to: %s", user_debugger_dir)
+                sync_tree(dir, dest_dir)
             end
         end
     end)

@@ -1,6 +1,7 @@
 -- ARM Embedded Build Rule with External Database Loading
 
 rule("embedded")
+    add_deps("embedded.vscode")
     on_load(function(target)
         -- Load required modules
         import("core.base.global")
@@ -22,9 +23,32 @@ rule("embedded")
             return data
         end
 
+        -- Load MCU database with support for project-local overrides
+        -- Priority: mcu-local.json (project) > mcu-database.json (package)
+        local function load_mcu_database()
+            local mcu_data = load_json_db("mcu-database.json")
+
+            local local_mcu_file = path.join(os.projectdir(), "mcu-local.json")
+            if os.isfile(local_mcu_file) then
+                local local_data, err = json.loadfile(local_mcu_file)
+                if local_data and local_data.CONFIGS then
+                    for name, config in pairs(local_data.CONFIGS) do
+                        mcu_data.CONFIGS[name:lower()] = config
+                    end
+                    if target:get("verbose") then
+                        print("embedded: Loaded project-local MCU definitions from mcu-local.json")
+                    end
+                elseif err then
+                    print("warning: Failed to parse mcu-local.json: %s", err)
+                end
+            end
+
+            return mcu_data
+        end
+
         -- Load all database modules using JSON
         local cortex_data = load_json_db("cortex-m.json")
-        local mcu_data = load_json_db("mcu-database.json")
+        local mcu_data = load_mcu_database()
         local build_data = load_json_db("build-options.json")
         local toolchain_data = load_json_db("toolchain-configs.json")
         
@@ -70,37 +94,12 @@ rule("embedded")
         -- Get MCU and toolchain configuration
         local mcu = target:values("embedded.mcu")
         local toolchain = target:values("embedded.toolchain") or build_data.DEFAULTS.toolchain
-        
-        -- Check for toolchain consistency with compile_commands.json
-        local compile_db_file = path.join(os.projectdir(), ".build", "compile_commands.json")
-        if os.isfile(compile_db_file) then
-            local content = io.readfile(compile_db_file)
-            if content then
-                local current_toolchain = toolchain
-                if type(current_toolchain) == "table" and #current_toolchain > 0 then
-                    current_toolchain = current_toolchain[1]
-                end
-                
-                -- Check for toolchain mismatch
-                local has_clang = content:find("/clang%-arm/") ~= nil
-                local has_gcc = content:find("/gcc%-arm/") ~= nil
-                
-                if (current_toolchain == "clang-arm" and has_gcc) or 
-                   (current_toolchain == "gcc-arm" and has_clang) then
-                    -- Clear clangd cache to force reindex
-                    local clangd_cache = path.join(os.projectdir(), ".cache", "clangd")
-                    if os.isdir(clangd_cache) then
-                        os.rmdir(clangd_cache)
-                        print("ARM Embedded: Cleared clangd cache due to toolchain change")
-                    end
-                    
-                    -- Also remove compile_commands.json to force regeneration
-                    os.rm(compile_db_file)
-                    print("ARM Embedded: Removed stale compile_commands.json")
-                    print("              Please rebuild to regenerate with " .. current_toolchain)
-                end
-            end
+
+        -- Ensure toolchain is a string (target:values may return a table)
+        if type(toolchain) == "table" then
+            toolchain = toolchain[1] or build_data.DEFAULTS.toolchain
         end
+
         -- Get build type - check multiple sources (target-local only, no global state modification)
         local build_type = nil
 
@@ -157,7 +156,13 @@ rule("embedded")
         end
         
         if not mcu then
-            raise("embedded rule requires 'mcu' configuration. Please specify: set_values(\"embedded.mcu\", \"your_mcu_name\")")
+            raise([[embedded rule requires 'mcu' configuration.
+
+How to fix:
+  1. In xmake.lua: set_values("embedded.mcu", "stm32f407vg")
+  2. Or via command line: xmake f --mcu=stm32f407vg
+
+Supported MCUs can be found in the mcu-database.json file.]])
         end
         
         -- Extract MCU name if it's an array
@@ -166,7 +171,17 @@ rule("embedded")
         -- Get MCU configuration from database
         local mcu_config = mcu_db.get_config(mcu_name)
         if not mcu_config then
-            raise("Unknown MCU: " .. mcu_name .. ". Please add it to mcu-database.lua")
+            raise([[Unknown MCU: ]] .. mcu_name .. [[
+
+How to fix:
+  1. Check if the MCU name is correct (e.g., "stm32f407vg", "stm32f103c8")
+  2. Add the MCU to mcu-database.json if it's a new device
+  3. Use 'xmake info' to see available MCUs
+
+Example:
+  target("myapp")
+      add_rules("embedded")
+      set_values("embedded.mcu", "stm32f407vg")]])
         end
         
         -- Get core configuration
@@ -177,7 +192,13 @@ rule("embedded")
         
         -- Set toolchain directly
         target:set("toolchains", toolchain)
-        
+
+        -- Auto-set group if not explicitly specified by user
+        -- Format: "embedded/<toolchain>" (e.g., "embedded/clang-arm", "embedded/gcc-arm")
+        if not target:get("group") then
+            target:set("group", "embedded/" .. toolchain)
+        end
+
         -- For clang-arm, add target triple first
         local tc_config = cortex_data.toolchain_specific[toolchain]
         if toolchain == "clang-arm" then
@@ -322,7 +343,7 @@ rule("embedded")
                     local installs = os.dirs(path.join(latest, "*"))
                     if #installs > 0 then
                         local install_dir = installs[1]
-                        
+
                         -- Find GCC C++ version directory
                         local gcc_inc_base = path.join(install_dir, "arm-none-eabi", "include", "c++")
                         if os.isdir(gcc_inc_base) then
@@ -330,24 +351,24 @@ rule("embedded")
                             if #gcc_versions > 0 then
                                 table.sort(gcc_versions)
                                 local latest_version_path = gcc_versions[#gcc_versions]
-                                
+
                                 -- Add C++ include paths
                                 if os.isdir(latest_version_path) then
-                                    target:add("includedirs", latest_version_path, {public = true})
+                                    target:add("sysincludedirs", latest_version_path)
                                 end
-                                
+
                                 -- Add architecture-specific includes
                                 local arm_inc = path.join(latest_version_path, "arm-none-eabi")
                                 if os.isdir(arm_inc) then
-                                    target:add("includedirs", arm_inc, {public = true})
+                                    target:add("sysincludedirs", arm_inc)
                                 end
                             end
                         end
-                        
+
                         -- Add base C includes
                         local c_inc = path.join(install_dir, "arm-none-eabi", "include")
                         if os.isdir(c_inc) then
-                            target:add("includedirs", c_inc, {public = true})
+                            target:add("sysincludedirs", c_inc)
                         end
                     end
                 end
@@ -455,17 +476,17 @@ rule("embedded")
                 
                 -- Generate map file for common script
                 local mode = build_type or "release"
-                local map_path = path.join(".build", target:name(), mode, target:name() .. ".map")
+                local map_path = path.join("build", target:name(), mode, target:name() .. ".map")
                 target:add("ldflags", "-Wl,-Map=" .. map_path, {force = true})
             end
         else
             target:add("ldflags", "-T" .. linker_script, {force = true})
             -- Store for display
             target:data_set("embedded.linker_script_path", linker_script)
-            
+
             -- Generate map file for custom script
             local mode = build_type or "release"
-            local map_path = path.join(".build", target:name(), mode, target:name() .. ".map")
+            local map_path = path.join("build", target:name(), mode, target:name() .. ".map")
             target:add("ldflags", "-Wl,-Map=" .. map_path, {force = true})
         end
         
@@ -555,51 +576,9 @@ rule("embedded")
         -- Use actual toolchain, fallback to declared, then database default
         local default_toolchain = build_data and build_data.DEFAULTS and build_data.DEFAULTS.toolchain or "clang-arm"
         local toolchain = actual_toolchain or declared_toolchain or default_toolchain
-        
-        if toolchain == "gcc-arm" then
-            
-            -- Get actual gcc compiler path from target
-            local compiler = target:compiler("cxx") or target:compiler("cc")
-            if compiler then
-                local compiler_path = compiler:program()
-                
-                if compiler_path then
-                    -- Extract installation directory from compiler path
-                    -- e.g. /path/to/gcc-arm/version/hash/bin/arm-none-eabi-g++ -> /path/to/gcc-arm/version/hash
-                    local install_dir = path.directory(path.directory(compiler_path))
-                    
-                    -- Find GCC C++ version directory
-                    local gcc_inc_base = path.join(install_dir, "arm-none-eabi", "include", "c++")
-                    if os.isdir(gcc_inc_base) then
-                        local gcc_versions = os.dirs(path.join(gcc_inc_base, "*"))
-                        if #gcc_versions > 0 then
-                            -- Sort and use latest version (keep full path for version extraction)
-                            table.sort(gcc_versions)
-                            local latest_version_path = gcc_versions[#gcc_versions]
-                            local gcc_version_dir = path.basename(latest_version_path)
-                            
-                            -- Add C++ include paths (use full directory path instead of extracted version)
-                            local cxx_inc = latest_version_path
-                            if os.isdir(cxx_inc) then
-                                target:add("sysincludedirs", cxx_inc)
-                            end
-                            
-                            -- Add target-specific C++ include path
-                            local target_cxx_inc = path.join(cxx_inc, "arm-none-eabi")
-                            if os.isdir(target_cxx_inc) then
-                                target:add("sysincludedirs", target_cxx_inc)
-                            end
-                        end
-                    end
-                    
-                    -- Add standard C include paths
-                    local c_inc = path.join(install_dir, "arm-none-eabi", "include")
-                    if os.isdir(c_inc) then
-                        target:add("sysincludedirs", c_inc)
-                    end
-                end
-            end
-        end
+
+        -- Note: toolchain include paths (sysincludedirs) are set in on_load.
+        -- No need to duplicate here — on_load paths are available to both IDE and build.
 
         -- Get cached build data (already loaded in on_load, no need to reload)
         import("lib.detect.find_tool")
@@ -733,7 +712,7 @@ rule("embedded")
         else
             -- Fall back to loading from MCU database
             if mcu_name ~= "unknown" then
-                local mcu_data_file = path.join(rule_dir, "database", "mcu-database.json")
+                local mcu_data_file = path.join(os.scriptdir(), "database", "mcu-database.json")
                 local mcu_data = json.loadfile(mcu_data_file)
                 if mcu_data and mcu_data.mcus and mcu_data.mcus[mcu_name] then
                     local mcu_config = mcu_data.mcus[mcu_name]
@@ -776,18 +755,72 @@ rule("embedded")
     end)
     
     -- Generate additional output formats and display memory usage after linking
-    -- on_run hook for automatic flash programming
+    -- on_run hook for automatic flash programming or Renode simulation
     on_run(function(target)
-        -- Check if flash_on_run is enabled (default: true)
-        local flash_on_run = target:values("embedded.flash_on_run")
-        if flash_on_run == false then
-            -- If explicitly disabled, show error
-            raise("Direct execution not supported for embedded targets. Use 'xmake flash -t " .. target:name() .. "' to flash the device.")
+        import("core.base.json")
+
+        -- Check if MCU supports Renode (renode_repl in database)
+        local mcu_data = target:data("embedded._mcu_data")
+        local mcu = target:values("embedded.mcu")
+        local mcu_name = mcu and (type(mcu) == "table" and mcu[1] or mcu) or nil
+        local mcu_config = nil
+        if mcu_name and mcu_data and mcu_data.CONFIGS then
+            mcu_config = mcu_data.CONFIGS[mcu_name:lower()]
+        end
+
+        -- If MCU has renode_repl, run in Renode
+        if mcu_config and mcu_config.renode_repl then
+            local repl_path = mcu_config.renode_repl
+            local flash_origin = mcu_config.flash_origin or "0x08000000"
+
+            -- Determine build mode and target path
+            local build_type = target:data("embedded.build_type") or "release"
+            local target_name = target:name()
+            local target_dir = path.join("build", target_name, build_type)
+
+            -- Generate interactive .resc script
+            local flash_origin_plus4 = string.format("0x%08X", tonumber(flash_origin) + 4)
+            local resc_content = table.concat({
+                "# Auto-generated Renode interactive script",
+                "",
+                "using sysbus",
+                "",
+                'mach create "' .. target_name .. '"',
+                "",
+                "machine LoadPlatformDescription $CWD/" .. repl_path,
+                "sysbus LoadELF $CWD/" .. target_dir .. "/" .. target_name .. ".elf",
+                "",
+                "sysbus WriteDoubleWord 0xE000ED08 " .. flash_origin,
+                "sysbus WriteDoubleWord 0x00000000 `sysbus ReadDoubleWord " .. flash_origin .. "`",
+                "sysbus WriteDoubleWord 0x00000004 `sysbus ReadDoubleWord " .. flash_origin_plus4 .. "`",
+                "",
+                "usart1 CreateFileBackend $CWD/" .. target_dir .. "/uart.log true",
+                "showAnalyzer usart1",
+                "",
+                "cpu PerformanceInMips 100",
+                'echo "=== ' .. target_name .. ' Starting ==="',
+                'emulation RunFor "2"',
+                "usart1 CloseFileBackend $CWD/" .. target_dir .. "/uart.log",
+                "quit",
+                "",
+            }, "\n")
+
+            local resc_path = path.join(target_dir, target_name .. "_renode.resc")
+            os.mkdir(target_dir)
+            io.writefile(resc_path, resc_content)
+
+            print("Running in Renode: " .. target_name)
+            os.execv("renode", {"--console", "--disable-xwt", resc_path})
         else
             -- Default behavior: run flash task
-            import("core.project.task")
-            print("Flashing target: " .. target:name())
-            task.run("flash", {target = target:name()})
+            local flash_on_run = target:values("embedded.flash_on_run")
+            if flash_on_run == false then
+                raise("Direct execution not supported for embedded targets. Use 'xmake flash -t " .. target:name() .. "' to flash the device.")
+            else
+                import("core.project.task")
+                print("Flashing target: " .. target:name())
+                task.run("flash", {target = target:name()})
+            end
         end
     end)
     
@@ -990,3 +1023,4 @@ rule("embedded")
         end
     end)
 
+rule_end()
