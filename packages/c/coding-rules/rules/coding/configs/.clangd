@@ -1,2 +1,46 @@
+# Default: host compilation database for shared code and tests.
+# ARM-specific flags are removed since host clang doesn't understand them.
 CompileFlags:
-  CompilationDatabase: .build/
+  CompilationDatabase: build/compdb/host/
+  Add:
+    - "-std=c++23"
+  Remove:
+    - -mfpu=*
+    - -mfloat-abi=*
+    - -mcpu=*
+    - -mthumb
+    - --specs=*
+    - -fno-exceptions
+    - -fno-rtti
+
+Diagnostics:
+  Suppress:
+    - pp_file_not_found
+
+---
+# ARM platform code: use ARM compilation database with full embedded flags.
+If:
+  PathMatch:
+    - .*/platforms/arm/.*
+    - .*/umiport/.*
+CompileFlags:
+  CompilationDatabase: build/compdb/arm/
+  Add:
+    - "-std=c++23"
+  Remove:
+    - --specs=*
+    - -fno-exceptions
+    - -fno-rtti
+
+---
+# WASM platform code: use WASM compilation database.
+If:
+  PathMatch:
+    - .*/platforms/wasm/.*
+CompileFlags:
+  CompilationDatabase: build/compdb/wasm/
+  Add:
+    - "-std=c++23"
+  Remove:
+    - -fno-exceptions
+    - -fno-rtti

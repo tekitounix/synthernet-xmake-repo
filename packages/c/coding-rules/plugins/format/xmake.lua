@@ -77,7 +77,7 @@ task("format")
                 local files = os.files(path.join(os.projectdir(), pattern))
                 for _, f in ipairs(files) do
                     -- Skip build directory and external dependencies
-                    if not f:find("/.build/") and not f:find("/.xmake/") and
+                    if not f:find("/build/") and not f:find("/.xmake/") and
                        not f:find("/packages/") and not f:find("/node_modules/") and
                        not f:find("/.ref/") then
                         if not seen_files[f] then
