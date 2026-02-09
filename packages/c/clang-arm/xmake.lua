@@ -3,16 +3,25 @@ package("clang-arm")
     set_kind("toolchain")
     set_homepage("https://github.com/ARM-software/LLVM-embedded-toolchain-for-Arm")
     set_description("A project dedicated to building LLVM toolchain for 32-bit Arm embedded targets.")
-    
-    -- Add URLs and versions first (platform-specific)
+
     if is_host("linux") then
-        if os.arch():find("arm64.*") then
+        if os.arch():find("arm64") then
+            add_urls("https://github.com/arm/arm-toolchain/releases/download/release-$(version)-ATfE/ATfE-$(version)-Linux-AArch64.tar.xz")
+            add_versions("21.1.1", "dfd93d7c79f26667f4baf7f388966aa4cbfd938bc5cbcf0ae064553faf3e9604")
+            add_versions("21.1.0", "04969ac437ff659f2b35e73bf4be857b2ec5bb22a2025cfba28c51aab6d51d69")
+            add_versions("20.1.0", "2fa9220f64097b71c07e6de2917f33fda1bb736964730786e90a430fdc0fa6be")
+            -- legacy source
             add_urls("https://github.com/ARM-software/LLVM-embedded-toolchain-for-Arm/releases/download/release-$(version)/LLVM-ET-Arm-$(version)-Linux-AArch64.tar.xz",
                      "https://github.com/ARM-software/LLVM-embedded-toolchain-for-Arm/releases/download/preview-$(version)/LLVM-ET-Arm-$(version)-Linux-AArch64.tar.xz")
             add_versions("19.1.5", "5e2f6b8c77464371ae2d7445114b4bdc19f56138e8aa864495181b52f57d0b85")
             add_versions("19.1.1", "0172cf1768072a398572cb1fc0bb42551d60181b3280f12c19401d94ca5162e6")
             add_versions("18.1.3", "47cd08804e22cdd260be43a00b632f075c3e1ad5a2636537c5589713ab038505")
         else
+            add_urls("https://github.com/arm/arm-toolchain/releases/download/release-$(version)-ATfE/ATfE-$(version)-Linux-x86_64.tar.xz")
+            add_versions("21.1.1", "fd7fcc2eb4c88c53b71c45f9c6aa83317d45da5c1b51b0720c66f1ac70151e6e")
+            add_versions("21.1.0", "40b59c426e4057fbfde3260939fa67f240312661bd96c96be752033a69d41c6e")
+            add_versions("20.1.0", "c1179396608c07bf68f3014923cfdfcd11c8402a3732f310c23d07c9a726b275")
+            -- legacy source
             add_urls("https://github.com/ARM-software/LLVM-embedded-toolchain-for-Arm/releases/download/release-$(version)/LLVM-ET-Arm-$(version)-Linux-x86_64.tar.xz",
                      "https://github.com/ARM-software/LLVM-embedded-toolchain-for-Arm/releases/download/preview-$(version)/LLVM-ET-Arm-$(version)-Linux-x86_64.tar.xz")
             add_versions("19.1.5", "34ee877aadc78c5e9f067e603a1bc9745ed93ca7ae5dbfc9b4406508dc153920")
@@ -20,42 +29,46 @@ package("clang-arm")
             add_versions("18.1.3", "7afae248ac33f7daee95005d1b0320774d8a5495e7acfb9bdc9475d3ad400ac9")
         end
     elseif is_host("windows") then
+        add_urls("https://github.com/arm/arm-toolchain/releases/download/release-$(version)-ATfE/ATfE-$(version)-Windows-x86_64.zip")
+        add_versions("21.1.1", "12e21352acd6ce514df77b6c9ff77e20978cbb44d4c7f922bd44c60594869460")
+        add_versions("21.1.0", "dc9aa044e68614fbf3251cddd42447819480d9a2f3de50cd9be7d76ad8f3523e")
+        add_versions("20.1.0", "0214ad4283c3b487bc96705121d06c74d6643ce3c2b3a1bad5e7c42789fe3c8f")
+        -- legacy source
         add_urls("https://github.com/ARM-software/LLVM-embedded-toolchain-for-Arm/releases/download/release-$(version)/LLVM-ET-Arm-$(version)-Windows-x86_64.zip",
                  "https://github.com/ARM-software/LLVM-embedded-toolchain-for-Arm/releases/download/preview-$(version)/LLVM-ET-Arm-$(version)-Windows-x86_64.zip")
         add_versions("19.1.5", "f4b26357071a5bae0c1dfe5e0d5061595a8cc1f5d921b6595cc3b269021384eb")
         add_versions("19.1.1", "3bf972ecff428cf9398753f7f2bef11220a0bfa4119aabdb1b6c8c9608105ee4")
         add_versions("18.1.3", "3013dcf1dba425b644e64cb4311b9b7f6ff26df01ba1fcd943105d6bb2a6e68b")
     elseif is_host("macosx") then
-        add_urls("https://github.com/ARM-software/LLVM-embedded-toolchain-for-Arm/releases/download/release-$(version)/LLVM-ET-Arm-$(version)-Darwin-universal.dmg")
+        add_urls("https://github.com/arm/arm-toolchain/releases/download/release-$(version)-ATfE/ATfE-$(version)-Darwin-universal.dmg")
+        add_versions("21.1.1", "2173cdb297ead08965ae1a34e4e92389b9024849b4ff4eb875652ff9667b7b2a")
+        add_versions("21.1.0", "a310b4e8603bc25d71444d8a70e8ee9c2362cb4c8f4dcdb91a35fa371b45f425")
+        add_versions("20.1.0", "11505eed22ceafcb52ef3d678a0640c67af92f511a9dd14309a44a766fafd703")
+        -- legacy source
+        add_urls("https://github.com/ARM-software/LLVM-embedded-toolchain-for-Arm/releases/download/release-$(version)/LLVM-ET-Arm-$(version)-Darwin-universal.dmg",
+                 "https://github.com/ARM-software/LLVM-embedded-toolchain-for-Arm/releases/download/preview-$(version)/LLVM-ET-Arm-$(version)-Darwin-universal.dmg")
         add_versions("19.1.5", "0451e67dc9a9066c17f746c26654962fa3889d4df468db1245d1bae69438eaf5")
         add_versions("19.1.1", "32c9253ab05e111cffc1746864a3e1debffb7fbb48631da88579e4f830fca163")
         add_versions("18.1.3", "2864324ddff4d328e4818cfcd7e8c3d3970e987edf24071489f4182b80187a48")
     end
-    
-    -- Package configuration and toolchain definition installation
+
     on_load(function (package)
-        -- Show package info
         local installdir = package:installdir()
         if not os.isdir(installdir) or not os.isfile(path.join(installdir, "bin", "clang")) then
-            cprint("${green}[clang-arm]${clear} Preparing to install LLVM Embedded Toolchain for Arm %s", package:version_str())
-            cprint("${green}[clang-arm]${clear} Expected download size: ~200MB (DMG on macOS)")
-            cprint("${green}[clang-arm]${clear} Expected install size: ~800MB (extracted)")
+            cprint("${green}[clang-arm]${clear} Preparing to install %s", package:version_str())
+            cprint("${green}[clang-arm]${clear} Expected download size: ~200MB")
+            cprint("${green}[clang-arm]${clear} Expected install size: ~800MB")
             cprint("${green}[clang-arm]${clear} Download may take several minutes depending on your connection...")
         end
-        
+
         package:addenv("PATH", "bin")
-        
-        -- Install toolchain definition to user's xmake directory during on_load
-        -- This ensures the toolchain is available before set_toolchains() is evaluated
+
         import("core.base.global")
-        local toolchain_file = path.join(package:scriptdir(), "toolchains", "xmake.lua")
+        local toolchain_file = path.join(package:scriptdir(), "toolchains/xmake.lua")
         if os.isfile(toolchain_file) then
             local user_toolchain_dir = path.join(global.directory(), "toolchains", "clang-arm")
             local dest_file = path.join(user_toolchain_dir, "xmake.lua")
             local need_update = true
-            
-            -- Compare file contents to avoid unnecessary updates
-            -- This improves performance while ensuring consistency
             if os.isfile(dest_file) then
                 local src_content = io.readfile(toolchain_file)
                 local dst_content = io.readfile(dest_file)
@@ -63,7 +76,6 @@ package("clang-arm")
                     need_update = false
                 end
             end
-            
             if need_update then
                 os.mkdir(user_toolchain_dir)
                 os.cp(toolchain_file, dest_file)
@@ -74,11 +86,10 @@ package("clang-arm")
 
     on_install("linux", "windows", "macosx", function(package)
         import("core.base.option")
-        
-        cprint("${green}[clang-arm]${clear} Installing LLVM Embedded Toolchain for Arm %s...", package:version_str())
-        
+
+        cprint("${green}[clang-arm]${clear} Installing %s...", package:version_str())
+
         if package:is_plat("macosx") then
-            -- Show DMG info
             local originfile = package:originfile()
             if os.isfile(originfile) then
                 local filesize = os.filesize(originfile)
@@ -98,7 +109,6 @@ package("clang-arm")
                 end
             end
 
-            -- Helper to safely detach DMG
             local function safe_detach()
                 if mountdir and os.isdir(mountdir) then
                     cprint("${green}[clang-arm]${clear} Unmounting DMG...")
@@ -107,77 +117,56 @@ package("clang-arm")
             end
 
             if not mountdir or not os.isdir(mountdir) then
-                raise("cannot mount DMG: %s\nPlease check if the file is corrupted or try downloading again.", package:originfile())
+                raise("cannot mount DMG: %s", package:originfile())
             end
             cprint("${green}[clang-arm]${clear} Mounted at: %s", mountdir)
 
-            -- Find LLVM-ET-Arm-* directory in DMG (with cleanup on failure)
             cprint("${green}[clang-arm]${clear} Looking for toolchain directory...")
             local toolchaindir
             for _, dir in ipairs(os.dirs(path.join(mountdir, "*"))) do
                 local basename = path.basename(dir)
-                if basename:find("LLVM%-ET%-Arm") then
+                if basename:find("ATfE") or basename:find("LLVM%-ET%-Arm") then
                     toolchaindir = dir
                     break
                 end
             end
             if not toolchaindir then
                 safe_detach()
-                raise("cannot find LLVM-ET-Arm directory in %s\nDMG contents may be corrupted.", mountdir)
+                raise("toolchain directory not found in DMG: %s", mountdir)
             end
-            cprint("${green}[clang-arm]${clear} Found toolchain: %s", path.basename(toolchaindir))
+            cprint("${green}[clang-arm]${clear} Found: %s", path.basename(toolchaindir))
 
             cprint("${green}[clang-arm]${clear} Copying toolchain files...")
-            cprint("${green}[clang-arm]${clear} This may take a few minutes (~800MB of files)...")
-
-            -- Copy with cleanup on failure
             local copy_ok = try { function()
-                if option.get("verbose") or option.get("diagnosis") then
-                    -- Use shell to expand wildcards
-                    os.vexecv("bash", {"-c", format("cp -Rv %s/* %s", toolchaindir, package:installdir())})
+                local rsync_path = try { function() return os.iorun("which rsync") end }
+                if rsync_path and rsync_path:trim() ~= "" then
+                    os.vrunv("rsync", {"-ah", "--progress", toolchaindir .. "/", package:installdir() .. "/"})
                 else
-                    -- Show progress with rsync if available
-                    local rsync_path = os.iorun("which rsync")
-                    if rsync_path and rsync_path:trim() ~= "" then
-                        -- rsync needs trailing slashes for directory contents
-                        os.vrunv("rsync", {"-ah", "--progress", toolchaindir .. "/", package:installdir() .. "/"})
-                    else
-                        -- Fallback to shell cp to handle wildcards
-                        io.write("[clang-arm] Copying files")
-                        io.flush()
-                        os.vexecv("bash", {"-c", format("cp -R %s/* %s", toolchaindir, package:installdir())})
-                        print(" done!")
-                    end
+                    os.vexecv("bash", {"-c", format("cp -R %s/* %s", toolchaindir, package:installdir())})
                 end
                 return true
             end }
 
-            -- Always detach DMG, even on failure
             safe_detach()
 
             if not copy_ok then
-                raise("Failed to copy toolchain files from DMG")
+                raise("Failed to copy files from DMG")
             end
         else
-            -- Linux/Windows extraction
             local originfile = package:originfile()
             if os.isfile(originfile) then
                 local filesize = os.filesize(originfile)
                 cprint("${green}[clang-arm]${clear} Archive size: ${bright}%.2f MB${clear}", filesize / 1024 / 1024)
             end
-            
+
             cprint("${green}[clang-arm]${clear} Extracting toolchain files...")
             if option.get("verbose") or option.get("diagnosis") then
                 os.vrunv("tar", {"-xzvf", originfile, "-C", package:installdir(), "--strip-components=1"})
             else
-                io.write("[clang-arm] Extracting")
-                io.flush()
                 os.vrunv("tar", {"-xzf", originfile, "-C", package:installdir(), "--strip-components=1"})
-                print(" done!")
             end
         end
-        
-        -- Ensure binaries are executable
+
         cprint("${green}[clang-arm]${clear} Setting up toolchain binaries...")
         if not is_host("windows") then
             local bindir = path.join(package:installdir(), "bin")
@@ -185,40 +174,25 @@ package("clang-arm")
                 os.vrunv("chmod", {"-R", "+x", bindir})
             end
         end
-        
-        -- Verify installation by checking key binaries
+
         cprint("${green}[clang-arm]${clear} Verifying installation...")
         local bindir = path.join(package:installdir(), "bin")
-        if not os.isdir(bindir) then
-            raise("Clang ARM bin directory not found after extraction: " .. bindir)
+        local exe = is_host("windows") and "clang.exe" or "clang"
+        local exe_path = path.join(bindir, exe)
+        if not os.isfile(exe_path) then
+            raise("clang not found after installation: %s", exe_path)
         end
-        
-        local clang_exe = is_host("windows") and "clang.exe" or "clang"
-        local clang_path = path.join(bindir, clang_exe)
-        if not os.isfile(clang_path) then
-            raise("Clang ARM compiler not found after extraction: " .. clang_path)
-        end
-        
-        -- Verify the toolchain works
-        local verify_ok = try { function()
-            os.vrunv(clang_path, {"--version"})
-            return true
-        end }
-        
-        if not verify_ok then
-            raise("Clang ARM installed but not functional")
-        end
-        
+
         cprint("${green}[clang-arm]${clear} Installation completed successfully!")
         cprint("${green}[clang-arm]${clear} Toolchain installed to: ${bright}%s${clear}", package:installdir())
     end)
 
     on_test(function (package)
-        local clang = path.join(package:installdir(), "bin", "clang")
-        if package:is_plat("windows") then
-            clang = clang .. ".exe"
+        local exe = path.join(package:installdir(), "bin", "clang")
+        if is_host("windows") then
+            exe = exe .. ".exe"
         end
-        -- Test that clang exists and supports ARM targets
-        os.vrunv(clang, {"--version"})
-        os.vrunv(clang, {"--target=arm-none-eabi", "--version"})
+        os.vrunv(exe, {"--version"})
+        os.vrunv(exe, {"--target=arm-none-eabi", "--version"})
     end)
+
