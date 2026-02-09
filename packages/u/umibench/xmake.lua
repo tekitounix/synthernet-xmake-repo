@@ -5,6 +5,7 @@ package("umibench")
 
     set_kind("library", {headeronly = true})
 
+    add_urls("https://github.com/tekitounix/umi/releases/download/v$(version)/umibench-$(version).tar.gz")
     add_versions("dev", "git:../../../../lib/umibench")
 
     add_configs("backend", {

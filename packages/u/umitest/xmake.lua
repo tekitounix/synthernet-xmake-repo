@@ -5,6 +5,7 @@ package("umitest")
 
     set_kind("library", {headeronly = true})
 
+    add_urls("https://github.com/tekitounix/umi/releases/download/v$(version)/umitest-$(version).tar.gz")
     add_versions("dev", "git:../../../../lib/umitest")
 
     on_install(function(package)
