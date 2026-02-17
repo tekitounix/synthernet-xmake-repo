@@ -253,9 +253,16 @@ Example:
         target:add("cxxflags", "-Wno-main", {force = true})
         
         -- Apply LTO flags if enabled
+        -- -flto=thin is Clang/LLVM only; GCC ignores LTO thin silently
         if lto ~= "none" and build_data.LTO_OPTIONS[lto] then
-            for _, flag in ipairs(build_data.LTO_OPTIONS[lto]) do
-                target:add("cxflags", flag, {force = true})
+            local skip_lto = false
+            if toolchain ~= "clang-arm" and (lto == "thin" or lto == "-flto=thin") then
+                skip_lto = true  -- GCC: thin LTO not supported, skip entirely
+            end
+            if not skip_lto then
+                for _, flag in ipairs(build_data.LTO_OPTIONS[lto]) do
+                    target:add("cxflags", flag, {force = true})
+                end
             end
         end
         
@@ -286,10 +293,12 @@ Example:
             for _, flag in ipairs(newlib_flags) do
                 target:add("ldflags", flag, {force = true})
             end
-            -- Apply LTO linker flags for GCC
-            if lto ~= "none" and cortex_data.linker_options["gcc-arm"].lto and cortex_data.linker_options["gcc-arm"].lto[lto] then
-                for _, flag in ipairs(cortex_data.linker_options["gcc-arm"].lto[lto]) do
-                    target:add("ldflags", flag, {force = true})
+            -- Apply LTO linker flags for GCC (thin → skip, same as compiler flags)
+            if lto ~= "none" and not (lto == "thin" or lto == "-flto=thin") then
+                if cortex_data.linker_options["gcc-arm"].lto and cortex_data.linker_options["gcc-arm"].lto[lto] then
+                    for _, flag in ipairs(cortex_data.linker_options["gcc-arm"].lto[lto]) do
+                        target:add("ldflags", flag, {force = true})
+                    end
                 end
             end
         end
