@@ -158,11 +158,9 @@ auto sum_channels(Args... channel_ids) {
 
 // ベンダーコード例外
 namespace vendor {
-// NOLINTBEGIN(readability-identifier-naming)
 struct GPIO_TypeDef {
     volatile uint32_t MODER;
 };
-// NOLINTEND(readability-identifier-naming)
 } // namespace vendor
 
 } // namespace midi_core

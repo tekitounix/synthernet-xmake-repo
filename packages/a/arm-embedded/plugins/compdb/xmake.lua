@@ -1,57 +1,35 @@
--- Generate per-platform compile_commands.json for clangd multi-target support.
+-- Force-regenerate the normalized compile_commands.json for clangd.
 --
--- Output:
---   build/compdb/host/compile_commands.json  -- host clang entries
---   build/compdb/arm/compile_commands.json   -- clang-arm + gcc-arm entries
---   build/compdb/wasm/compile_commands.json  -- emcc entries
+-- This plugin clears the embedded.compdb dependency cache and triggers a build,
+-- which causes the compdb rule to regenerate unconditionally.
+-- Already-compiled files are not recompiled — only the compdb generation runs.
 --
--- No root compile_commands.json is generated. All consumers (clangd, clang-tidy, etc.)
--- should use the per-platform databases via .clangd PathMatch or explicit -p flag.
---
--- Usage: xmake compdb
+-- Usage: xmake compdb [target]
 
 task("compdb")
     set_category("plugin")
     set_menu {
-        usage = "xmake compdb",
-        description = "Generate per-platform compile_commands.json for clangd"
+        usage = "xmake compdb [target]",
+        description = "Force-regenerate normalized compile_commands.json for clangd",
+        options = {
+            {nil, "target", "v", nil, "Target name (any target works — compdb covers all targets)"}
+        }
     }
     on_run(function ()
-        import("core.base.json")
+        import("core.project.config")
+        import("core.base.option")
 
-        -- 1. Generate raw compile_commands.json via xmake (temporary)
-        os.execv("xmake", {"project", "-k", "compile_commands", "."})
+        config.load()
 
-        local compdb_path = path.join(os.projectdir(), "compile_commands.json")
-        local entries = json.loadfile(compdb_path)
+        -- Clear dependency cache so embedded.compdb rule runs unconditionally
+        local dependfile = path.join(config.builddir(), ".gens", "rules", "embedded.compdb.d")
+        os.rm(dependfile)
 
-        -- 2. Classify each entry by platform
-        local buckets = { host = {}, arm = {}, wasm = {} }
-
-        local function classify(e)
-            local compiler = e.arguments and e.arguments[1] or ""
-            if compiler:find("arm%-none%-eabi") then return "arm" end
-            if compiler:find("emcc") then return "wasm" end
-            if compiler:find("/%.xmake/packages/") then return "arm" end  -- clang-arm
-            return "host"
+        -- Trigger build (compdb rule runs in after_build hook)
+        local target = option.get("target")
+        if target then
+            os.execv("xmake", {"build", target})
+        else
+            os.execv("xmake", {"build"})
         end
-
-        for _, e in ipairs(entries) do
-            table.insert(buckets[classify(e)], e)
-        end
-
-        -- 3. Write per-platform databases
-        local compdb_dir = path.join(os.projectdir(), "build", "compdb")
-
-        for name, db_entries in pairs(buckets) do
-            local dir = path.join(compdb_dir, name)
-            os.mkdir(dir)
-            json.savefile(path.join(dir, "compile_commands.json"), db_entries, {indent = 2})
-        end
-
-        -- 4. Remove root compile_commands.json (mixed targets cause problems for all tools)
-        os.rm(compdb_path)
-
-        print("compdb: host=%d, arm=%d, wasm=%d",
-              #buckets["host"], #buckets["arm"], #buckets["wasm"])
     end)

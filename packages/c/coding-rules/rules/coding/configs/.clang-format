@@ -8,35 +8,24 @@ IndentWidth: 4
 ColumnLimit: 120
 PointerAlignment: Left
 ReferenceAlignment: Left
+DerivePointerAlignment: false
 BinPackArguments: false
 BinPackParameters: false
 
 # C++ specific
-RequiresClausePosition: OwnLine
-IndentRequiresClause: true
 AllowShortFunctionsOnASingleLine: Inline
 AlwaysBreakTemplateDeclarations: Yes
 
 # Include sorting
 IncludeBlocks: Regroup
-SortIncludes: CaseSensitive
 IncludeCategories:
-  - Regex:    '^<.*\.h>'
+  - Regex: '^<.*\.h>'
     Priority: 1
-  - Regex:    '^<.*>'
+  - Regex: "^<[a-z0-9_]+>$"
     Priority: 2
-  - Regex:    '^".*"'
+  - Regex: "^<umicore/"
     Priority: 3
-
-# Alignment
-IndentPPDirectives: BeforeHash
-AlignConsecutiveMacros: AcrossEmptyLines
-AlignOperands: Align
-AlignEscapedNewlines: Left
-AlignTrailingComments: true
-
-# Line breaks
-MaxEmptyLinesToKeep: 1
-EmptyLineAfterAccessModifier: Never
-EmptyLineBeforeAccessModifier: LogicalBlock
-LambdaBodyIndentation: Signature
+  - Regex: "^<umi[a-z]+/"
+    Priority: 4
+  - Regex: '^".*"'
+    Priority: 5
