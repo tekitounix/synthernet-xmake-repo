@@ -361,20 +361,45 @@ Example:
                                 table.sort(gcc_versions)
                                 local latest_version_path = gcc_versions[#gcc_versions]
 
-                                -- Add C++ include paths
+                                -- Add C++ include paths (order matches arm-none-eabi-g++ -v output)
+                                -- 1. C++ standard headers
                                 if os.isdir(latest_version_path) then
                                     target:add("sysincludedirs", latest_version_path)
                                 end
 
-                                -- Add architecture-specific includes
+                                -- 2. Architecture-specific includes (bits/c++config.h — required)
                                 local arm_inc = path.join(latest_version_path, "arm-none-eabi")
                                 if os.isdir(arm_inc) then
                                     target:add("sysincludedirs", arm_inc)
                                 end
+
+                                -- 3. Backward compatibility headers
+                                local backward_inc = path.join(latest_version_path, "backward")
+                                if os.isdir(backward_inc) then
+                                    target:add("sysincludedirs", backward_inc)
+                                end
                             end
                         end
 
-                        -- Add base C includes
+                        -- 4-5. GCC builtins include + include-fixed
+                        local gcc_lib_base = path.join(install_dir, "lib", "gcc", "arm-none-eabi")
+                        if os.isdir(gcc_lib_base) then
+                            local gcc_lib_versions = os.dirs(path.join(gcc_lib_base, "*"))
+                            if #gcc_lib_versions > 0 then
+                                table.sort(gcc_lib_versions)
+                                local gcc_lib_ver = gcc_lib_versions[#gcc_lib_versions]
+                                local builtins = path.join(gcc_lib_ver, "include")
+                                if os.isdir(builtins) then
+                                    target:add("sysincludedirs", builtins)
+                                end
+                                local fixed = path.join(gcc_lib_ver, "include-fixed")
+                                if os.isdir(fixed) then
+                                    target:add("sysincludedirs", fixed)
+                                end
+                            end
+                        end
+
+                        -- 6. Base C includes (newlib)
                         local c_inc = path.join(install_dir, "arm-none-eabi", "include")
                         if os.isdir(c_inc) then
                             target:add("sysincludedirs", c_inc)
