@@ -60,7 +60,7 @@ package("arm-embedded")
         -- These were removed or consolidated in the current package structure.
         -- Keep this list until all developer environments have been updated.
         local legacy = {
-            rules  = {"embedded.debugger"},                                     -- merged into embedded rule
+            rules  = {"embedded.debugger", "umibm.firmware", "umios.firmware"},   -- merged into generic firmware rule
             plugins = {"debug", "debugger", "deploy", "emulator", "project", "serve"}  -- unused/redundant
         }
         for _, name in ipairs(legacy.rules) do
@@ -99,6 +99,20 @@ package("arm-embedded")
                 end
                 sync_tree(dir, dest_dir)
             end
+        end
+
+        -- 3. Claude staging: claude/ → ~/.xmake/rules/embedded/claude/
+        local claude_src = path.join(src, "claude")
+        if os.isdir(claude_src) then
+            local claude_dest = path.join(dest_root, "rules", "embedded", "claude")
+            sync_tree(claude_src, claude_dest)
+        end
+
+        -- 4. Scripts: scripts/ → ~/.xmake/rules/embedded/scripts/
+        local scripts_src = path.join(src, "scripts")
+        if os.isdir(scripts_src) then
+            local scripts_dest = path.join(dest_root, "rules", "embedded", "scripts")
+            sync_tree(scripts_src, scripts_dest)
         end
     end)
     

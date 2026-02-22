@@ -28,9 +28,9 @@ task("coding-check")
                     return true
                 end
                 if ci_mode then
-                    task.run("format", {["dry-run"] = true})
+                    task.run("coding-format", {["dry-run"] = true})
                 else
-                    task.run("format", {})
+                    task.run("coding-format", {})
                 end
                 return true
             end,

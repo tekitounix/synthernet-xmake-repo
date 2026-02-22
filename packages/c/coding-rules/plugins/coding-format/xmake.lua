@@ -1,11 +1,13 @@
--- xmake format plugin (project-root config reference)
+-- xmake coding-format plugin (project-root config reference)
 -- Uses .clang-format from os.projectdir() as the single source of truth.
+-- Scan directories default to project root; excludes /build/ and /.xmake/ only.
 
-task("format")
+task("coding-format")
     set_category("plugin")
 
     on_run(function ()
         import("core.base.option")
+        import("core.base.global")
         import("lib.detect.find_program")
 
         local clang_format = find_program("clang-format")
@@ -14,63 +16,38 @@ task("format")
         end
 
         -- Project root .clang-format is the single source of truth
-        local format_config = path.join(os.projectdir(), ".clang-format")
+        local project_dir = os.projectdir()
+        local format_config = path.join(project_dir, ".clang-format")
         if not os.isfile(format_config) then
-            raise(".clang-format not found in project root: " .. os.projectdir())
+            raise(".clang-format not found in project root: " .. project_dir)
         end
+
+        -- Load shared file collector
+        local script_dir = path.join(global.directory(), "rules", "coding", "scripts")
+        local collector = import("file_collector", {rootdir = script_dir})
+        collector.init()
 
         local dry_run = option.get("dry-run")
         local files_filter = option.get("input")
         local target_name = option.get("target")
 
         -- Collect files
-        local files_to_format = {}
-        local seen = {}
-
+        local files_to_format
         if files_filter then
-            -- Explicit file list
-            for file in files_filter:gmatch("[^,]+") do
-                file = file:match("^%s*(.-)%s*$")
-                if not path.is_absolute(file) then
-                    file = path.join(os.projectdir(), file)
-                end
-                if os.isfile(file) and not seen[file] then
-                    table.insert(files_to_format, file)
-                    seen[file] = true
+            files_to_format = collector.from_explicit(files_filter, project_dir)
+            -- Filter to only existing files
+            local existing = {}
+            for _, f in ipairs(files_to_format) do
+                if os.isfile(f) then
+                    table.insert(existing, f)
                 end
             end
+            files_to_format = existing
         else
-            -- Scan project directories
-            local scan_dirs = {"lib", "examples"}
-            if target_name then
-                -- Try target-specific directories
-                scan_dirs = {}
-                for _, d in ipairs({"lib/" .. target_name, "examples/" .. target_name}) do
-                    local abs = path.join(os.projectdir(), d)
-                    if os.isdir(abs) then
-                        table.insert(scan_dirs, d)
-                    end
-                end
-                if #scan_dirs == 0 then
-                    scan_dirs = {"lib", "examples"}
-                end
-            end
-
-            for _, dir in ipairs(scan_dirs) do
-                local abs_dir = path.join(os.projectdir(), dir)
-                if os.isdir(abs_dir) then
-                    for _, pattern in ipairs({"**.cc", "**.hh", "**.cpp", "**.hpp", "**.c", "**.h"}) do
-                        for _, f in ipairs(os.files(path.join(abs_dir, pattern))) do
-                            if not f:find("/build/") and not f:find("/.xmake/")
-                               and not f:find("/.ref/") and not f:find("/third_party/")
-                               and not f:find("/_archive/") and not seen[f] then
-                                table.insert(files_to_format, f)
-                                seen[f] = true
-                            end
-                        end
-                    end
-                end
-            end
+            files_to_format = collector.from_scan(project_dir, {
+                extensions = collector.all_extensions,
+                target = target_name,
+            })
         end
 
         if #files_to_format == 0 then
@@ -89,13 +66,13 @@ task("format")
 
             if errdata and #errdata > 0 then
                 if dry_run then
-                    print("  Needs formatting: %s", path.relative(file, os.projectdir()))
+                    print("  Needs formatting: %s", path.relative(file, project_dir))
                     formatted_count = formatted_count + 1
                 else
                     os.execv(clang_format, {"-i", "--style=file:" .. format_config, file})
                     formatted_count = formatted_count + 1
                     if option.get("diagnosis") then
-                        print("  Formatted: %s", path.relative(file, os.projectdir()))
+                        print("  Formatted: %s", path.relative(file, project_dir))
                     end
                 end
             end
@@ -114,7 +91,7 @@ task("format")
     end)
 
     set_menu {
-        usage = "xmake format [options]",
+        usage = "xmake coding-format [options]",
         description = "Format source code using clang-format",
         options = {
             {'t', "target",  "kv", nil, "Format only the specified target"},

@@ -1,210 +1,215 @@
--- xmake lint plugin
--- Runs clang-tidy checks on source files
+-- xmake lint plugin (compdb-based)
+-- Uses compile_commands.json for accurate compilation flags.
+-- Supports: --target, --input, --changed, --json, --fix, --checks
 
 task("lint")
     set_category("plugin")
-    set_description("Run static analysis and style checks using clang-tidy")
-    
+
     on_run(function ()
         import("core.base.option")
-        import("core.project.project")
         import("lib.detect.find_program")
-        import("core.base.global")
-        
-        -- Find tools
+
+        -- Find clang-tidy
         local clang_tidy = find_program("clang-tidy")
         if not clang_tidy then
-            raise("clang-tidy not found. Please install clang-tidy to use this command.")
+            raise("clang-tidy not found. Please install clang-tidy.")
         end
-        
-        -- Get config file path
-        local rule_dir = path.join(global.directory(), "rules", "coding")
-        local config_dir = path.join(rule_dir, "configs")
-        local tidy_config = path.join(config_dir, ".clang-tidy")
-        
-        -- Check if config exists
-        if not os.isfile(tidy_config) then
-            raise("coding-rules package not properly installed. Config file not found: " .. tidy_config)
+
+        -- Find compile_commands.json (正本: build/compdb/)
+        local compdb_path = nil
+        local search_paths = {
+            path.join(os.projectdir(), "build", "compdb", "compile_commands.json"),
+            path.join(os.projectdir(), "compile_commands.json"),
+        }
+        for _, p in ipairs(search_paths) do
+            if os.isfile(p) then
+                compdb_path = p
+                break
+            end
         end
-        
+        if not compdb_path then
+            raise("compile_commands.json not found. Run 'xmake build' first.")
+        end
+        local compdb_dir = path.directory(compdb_path)
+
+        -- Load compdb entries
+        local compdb_data = io.readfile(compdb_path)
+        local entries = {}
+        -- Parse JSON manually (xmake json module)
+        import("core.base.json")
+        entries = json.decode(compdb_data)
+
+        -- Build file set from compdb
+        local compdb_files = {}
+        for _, entry in ipairs(entries) do
+            local file = entry.file
+            if file then
+                compdb_files[file] = true
+            end
+        end
+
         -- Get options
-        local target_name = option.get("target")
+        local target_filter = option.get("target")
+        local files_filter = option.get("input")
+        local changed_only = option.get("changed")
+        local json_output = option.get("json")
         local fix_mode = option.get("fix")
-        local checks = option.get("checks") or "readability-identifier-naming"
-        
-        -- Collect all files to check
+        local checks = option.get("checks")
+
+        -- Collect files to check
         local files_to_check = {}
-        local seen_files = {}
-        
-        -- Process each target
-        for _, target in pairs(project.targets()) do
-            if target_name and target:name() ~= target_name then
-                goto continue
+        local seen = {}
+
+        if files_filter then
+            -- Explicit file list (comma-separated)
+            for file in files_filter:gmatch("[^,]+") do
+                file = file:match("^%s*(.-)%s*$")  -- trim
+                if not path.is_absolute(file) then
+                    file = path.join(os.projectdir(), file)
+                end
+                if not seen[file] then
+                    table.insert(files_to_check, file)
+                    seen[file] = true
+                end
             end
-            
-            -- Get target compilation info
-            local target_info = {
-                includes = {},
-                defines = {},
-                cxxflags = {}
-            }
-            
-            -- Collect include directories
-            for _, dir in ipairs(target:get("includedirs")) do
-                table.insert(target_info.includes, "-I" .. dir)
+        elseif changed_only then
+            -- Git diff based (no hardcoded path filters)
+            import("core.base.global")
+            local script_dir = path.join(global.directory(), "rules", "coding", "scripts")
+            local collector = import("file_collector", {rootdir = script_dir})
+            collector.init()
+            local changed = collector.from_git_changed(os.projectdir(), {
+                extensions = collector.source_extensions,
+                filter_fn = function(f) return compdb_files[f] end,
+            })
+            for _, abs in ipairs(changed) do
+                if not seen[abs] then
+                    table.insert(files_to_check, abs)
+                    seen[abs] = true
+                end
             end
-            
-            -- Collect defines
-            for _, def in ipairs(target:get("defines")) do
-                table.insert(target_info.defines, "-D" .. def)
-            end
-            
-            -- Add source files with their compilation info
-            for _, file in ipairs(target:sourcefiles()) do
-                if file:endswith(".cc") or file:endswith(".cpp") or file:endswith(".c") then
-                    if not seen_files[file] then
-                        table.insert(files_to_check, {
-                            file = file,
-                            info = target_info
-                        })
-                        seen_files[file] = true
+        elseif target_filter then
+            -- Filter entries by target source directory pattern
+            for _, entry in ipairs(entries) do
+                local file = entry.file
+                if file and file:find(target_filter, 1, true) then
+                    if not seen[file] then
+                        table.insert(files_to_check, file)
+                        seen[file] = true
                     end
                 end
             end
-            
-            -- Add header files
-            for _, file in ipairs(target:headerfiles()) do
-                if not seen_files[file] then
-                    table.insert(files_to_check, {
-                        file = file,
-                        info = target_info
-                    })
-                    seen_files[file] = true
-                end
-            end
-            
-            -- Add headers from include directories
-            for _, dir in ipairs(target:get("includedirs")) do
-                if os.isdir(dir) then
-                    for _, pattern in ipairs({"**.hh", "**.hpp", "**.h"}) do
-                        local headers = os.files(path.join(dir, pattern))
-                        for _, h in ipairs(headers) do
-                            if not seen_files[h] then
-                                table.insert(files_to_check, {
-                                    file = h,
-                                    info = target_info
-                                })
-                                seen_files[h] = true
-                            end
-                        end
+        else
+            -- All files in compdb
+            for _, entry in ipairs(entries) do
+                local file = entry.file
+                if file and (file:endswith(".cc") or file:endswith(".cpp") or file:endswith(".c")) then
+                    if not seen[file] then
+                        table.insert(files_to_check, file)
+                        seen[file] = true
                     end
                 end
             end
-            
-            ::continue::
         end
-        
+
         if #files_to_check == 0 then
-            print("No files to check.")
+            if json_output then
+                print('{"success":true,"total_warnings":0,"total_errors":0,"files":[]}')
+            else
+                print("No files to check.")
+            end
             return
         end
-        
-        print("Checking %d files with clang-tidy...", #files_to_check)
-        if fix_mode then
-            print("Fix mode enabled - will attempt to fix issues automatically")
+
+        if not json_output then
+            print("Checking %d files with clang-tidy (compdb: %s)...", #files_to_check, compdb_path)
         end
-        
-        -- Check each file
-        local issues_found = 0
-        local files_with_issues = 0
-        
-        for _, item in ipairs(files_to_check) do
-            local file = item.file
-            local info = item.info
-            
-            if option.get("verbose") then
+
+        -- Run clang-tidy per file
+        local results = {success = true, total_warnings = 0, total_errors = 0, files = {}}
+
+        for _, file in ipairs(files_to_check) do
+            if option.get("diagnosis") and not json_output then
                 print("  Checking: %s", file)
             end
-            
-            -- Build clang-tidy arguments
-            local args = {
-                file,
-                "--config-file=" .. tidy_config,
-                "--checks=" .. checks
-            }
-            
+
+            local args = {file, "-p", compdb_dir}
+
+            -- Use project root .clang-tidy by default
+            local tidy_config = path.join(os.projectdir(), ".clang-tidy")
+            if os.isfile(tidy_config) then
+                args = table.join(args, {"--config-file=" .. tidy_config})
+            end
+
+            if checks then
+                table.insert(args, "--checks=" .. checks)
+            end
             if fix_mode then
                 table.insert(args, "--fix")
             end
-            
-            if not option.get("verbose") then
+            if not option.get("diagnosis") and not json_output then
                 table.insert(args, "--quiet")
             end
-            
-            -- Add compilation database separator
-            table.insert(args, "--")
-            
-            -- Add compilation flags
-            table.insert(args, "-x")
-            table.insert(args, file:endswith(".c") and "c" or "c++")
-            table.insert(args, "-std=" .. (file:endswith(".c") and "c23" or "c++23"))
-            
-            -- Add includes and defines
-            for _, inc in ipairs(info.includes) do
-                table.insert(args, inc)
-            end
-            for _, def in ipairs(info.defines) do
-                table.insert(args, def)
-            end
-            
-            -- Run clang-tidy
+
             local outdata, errdata = os.iorunv(clang_tidy, args)
-            
-            -- Parse output for issues
-            if outdata and #outdata > 0 then
-                local has_issues = false
-                for line in outdata:gmatch("[^\r\n]+") do
-                    if line:find("warning:") or line:find("error:") then
-                        has_issues = true
-                        issues_found = issues_found + 1
-                        if not option.get("verbose") then
-                            print("  %s", line)
-                        end
-                    elseif option.get("verbose") then
-                        print("  %s", line)
+            local combined = (outdata or "") .. "\n" .. (errdata or "")
+
+            -- Parse diagnostics
+            local file_result = {file = path.relative(file, os.projectdir()), diagnostics = {}}
+            for line in combined:gmatch("[^\r\n]+") do
+                local f, ln, col, sev, msg, check =
+                    line:match("^(.+):(%d+):(%d+): (%w+): (.+) %[(.+)%]$")
+                if sev == "warning" then
+                    results.total_warnings = results.total_warnings + 1
+                    table.insert(file_result.diagnostics, {
+                        line = tonumber(ln), column = tonumber(col),
+                        severity = sev, check = check, message = msg
+                    })
+                elseif sev == "error" then
+                    results.total_errors = results.total_errors + 1
+                    results.success = false
+                    table.insert(file_result.diagnostics, {
+                        line = tonumber(ln), column = tonumber(col),
+                        severity = sev, check = check, message = msg
+                    })
+                end
+            end
+
+            if #file_result.diagnostics > 0 then
+                table.insert(results.files, file_result)
+                if not json_output then
+                    print("  Issues in: %s (%d)", file_result.file, #file_result.diagnostics)
+                    for _, d in ipairs(file_result.diagnostics) do
+                        print("    %s:%d:%d %s: %s [%s]",
+                              file_result.file, d.line, d.column, d.severity, d.message, d.check)
                     end
                 end
-                
-                if has_issues then
-                    files_with_issues = files_with_issues + 1
-                    print("  ✗ Issues found in: %s", path.relative(file, os.projectdir()))
-                elseif option.get("verbose") then
-                    print("  ✓ No issues in: %s", path.relative(file, os.projectdir()))
-                end
             end
         end
-        
-        -- Summary
-        print("")
-        if issues_found > 0 then
-            print("Found %d issues in %d files.", issues_found, files_with_issues)
-            if not fix_mode then
-                print("Run 'xmake lint --fix' to automatically fix some issues.")
-            else
-                print("Some issues were automatically fixed. Please review the changes.")
-            end
+
+        if json_output then
+            import("core.base.json")
+            print(json.encode(results))
         else
-            print("✓ No issues found. Code passes all lint checks.")
+            print("")
+            if results.total_warnings == 0 and results.total_errors == 0 then
+                print("No issues found in %d files.", #files_to_check)
+            else
+                print("Found %d warning(s), %d error(s) in %d file(s).",
+                      results.total_warnings, results.total_errors, #results.files)
+            end
         end
     end)
-    
+
     set_menu {
         usage = "xmake lint [options]",
-        description = "Run static analysis and style checks using clang-tidy",
+        description = "Run clang-tidy using compile_commands.json",
         options = {
-            {'t', "target", "kv", nil, "Check only the specified target"},
-            {'f', "fix", "k", nil, "Automatically fix issues where possible"},
-            {'c', "checks", "kv", nil, "Specify checks to run (default: readability-identifier-naming)"},
-            {'v', "verbose", "k", nil, "Show verbose output"}
+            {'t', "target",  "kv", nil,   "Filter by target name pattern"},
+            {'i', "input",   "kv", nil,   "Comma-separated file paths to check"},
+            {nil, "changed", "k",  nil,   "Check only git-changed files"},
+            {nil, "json",    "k",  nil,   "Output structured JSON (for MCP)"},
+            {nil, "fix",     "k",  nil,   "Attempt to auto-fix issues"},
+            {'c', "checks",  "kv", nil,   "Override clang-tidy checks"},
         }
     }

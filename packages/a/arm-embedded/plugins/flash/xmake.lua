@@ -403,9 +403,7 @@ Make sure your debug probe is connected and drivers are installed.
                 print("To flash without probe selection, use:")
                 print("  $ xmake flash -t " .. target_obj:name() .. " -p <probe_uid>")
                 print("")
-                print("Available probe UIDs from list above:")
-                print("  - STLINK-V3: 0044001C3234510136303532")
-                print("  - STM32 STLink: 0669FF3731324B4D43183949")
+                print("Run 'xmake flash --list' to see available probe UIDs.")
                 os.exit(0)  -- Exit cleanly for user cancellation
             else
                 print("")

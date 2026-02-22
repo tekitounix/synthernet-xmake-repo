@@ -1,14 +1,3 @@
-# Auto-generated static configuration.
-# No PathMatch needed — embedded.compdb generates header entries
-# with project-wide include paths.
 CompileFlags:
-  CompilationDatabase: build/compdb/
   Add:
     - "-std=c++23"
-
-Diagnostics:
-  Suppress:
-    # ARM section attributes (.audio_ccm, .shared, etc.) are invalid on mach-o host.
-    - err_attribute_section_invalid_for_target
-    # ARM inline asm (mrs/msr) register constraints are 32-bit but host registers are 64-bit.
-    - warn_asm_mismatched_size_modifier

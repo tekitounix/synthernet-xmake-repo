@@ -36,6 +36,40 @@ rule("embedded.compdb")
 
             -- §3.1: Common utilities
 
+            --- Write compdb JSON array with human-readable formatting.
+            --- xmake's json.savefile ignores {indent = N}, so we format manually.
+            --- Key order: file → directory → arguments (file first for grep).
+            --- Arguments array: one element per line for readability.
+            local function json_pretty_save(filepath, entries)
+                local key_order = {"file", "directory", "arguments"}
+                local parts = {"[\n"}
+                local n = #entries
+                for i, entry in ipairs(entries) do
+                    table.insert(parts, "  {\n")
+                    for ki, k in ipairs(key_order) do
+                        local v = entry[k]
+                        if v == nil then goto next_key end
+                        if type(v) == "table" then
+                            table.insert(parts, string.format('    %s: [\n', json.encode(k)))
+                            for ai, arg in ipairs(v) do
+                                table.insert(parts, string.format('      %s', json.encode(arg)))
+                                table.insert(parts, ai < #v and ",\n" or "\n")
+                            end
+                            table.insert(parts, "    ]")
+                        else
+                            table.insert(parts, string.format('    %s: %s', json.encode(k), json.encode(v)))
+                        end
+                        table.insert(parts, ki < #key_order and ",\n" or "\n")
+                        ::next_key::
+                    end
+                    table.insert(parts, i < n and "  },\n" or "  }\n")
+                end
+                table.insert(parts, "]\n")
+                -- xmake's json.encode escapes "/" as "\/" — undo for readability
+                local content = table.concat(parts):gsub("\\/", "/")
+                io.writefile(filepath, content)
+            end
+
             --- Check if filepath is under a directory prefix (with boundary check).
             --- Prevents "/foo/bar" matching "/foo/barbaz/".
             local function is_under_dir(filepath, prefix)
@@ -245,46 +279,6 @@ rule("embedded.compdb")
                 return host_isysroot and is_under_dir(dir, host_isysroot)
             end
 
-            -- §3.8: Header platform estimation
-
-            --- Estimate header file's platform from metadata maps.
-            local function classify_header(header_path, file_meta, target_meta)
-                local abs_header = path.absolute(header_path)
-
-                -- Stage 1: Same-directory source file inheritance
-                local dir = path.directory(header_path)
-                local candidate = nil
-                for file, meta in pairs(file_meta) do
-                    if path.directory(file) == dir then
-                        if not candidate or meta.target_name < candidate.target_name then
-                            candidate = meta
-                        end
-                    end
-                end
-                if candidate then return candidate end
-
-                -- Stage 2: Target includedirs prefix match
-                local sorted_target_names = {}
-                for tname, _ in pairs(target_meta) do
-                    table.insert(sorted_target_names, tname)
-                end
-                table.sort(sorted_target_names)
-
-                for _, tname in ipairs(sorted_target_names) do
-                    local meta = target_meta[tname]
-                    if meta.includedirs then
-                        for _, incdir in ipairs(meta.includedirs) do
-                            if is_under_dir(abs_header, incdir) then
-                                return meta
-                            end
-                        end
-                    end
-                end
-
-                -- Stage 3: Default to host
-                return nil
-            end
-
             -- §3.9: Normalization
 
             --- Normalize a compdb entry for host clang analysis.
@@ -372,8 +366,7 @@ rule("embedded.compdb")
                         table.insert(new_args, arg)
                         i = i + 1
 
-                    elseif arg == "-fno-exceptions" or arg == "-fno-rtti"
-                        or arg == "-fno-threadsafe-statics" then
+                    elseif arg == "-fno-exceptions" or arg == "-fno-rtti" then
                         table.insert(new_args, arg)
                         i = i + 1
 
@@ -451,9 +444,11 @@ rule("embedded.compdb")
             depend.on_changed(function ()
 
                 -- 1. Generate raw compile_commands.json via xmake's project task
-                task.run("project", {kind = "compile_commands", outputdir = os.projectdir(), lsp = "clangd"})
+                local tmpdir = path.join(config.builddir(), ".tmp")
+                os.mkdir(tmpdir)
+                task.run("project", {kind = "compile_commands", outputdir = tmpdir, lsp = "clangd"})
 
-                local compdb_path = path.join(os.projectdir(), "compile_commands.json")
+                local compdb_path = path.join(tmpdir, "compile_commands.json")
                 if not os.isfile(compdb_path) then
                     return
                 end
@@ -464,7 +459,7 @@ rule("embedded.compdb")
                 local host_isysroot = nil
                 for _, e in ipairs(entries) do
                     local compiler = e.arguments and e.arguments[1] or ""
-                    if compiler:find("clang") and not compiler:find("arm%-none%-eabi") and not compiler:find("emcc") then
+                    if compiler:find("clang") and not compiler:find("arm%-none%-eabi") and not compiler:find("emcc") and not compiler:find("/%.xmake/packages/") then
                         host_clang = compiler
                         for i, arg in ipairs(e.arguments) do
                             if arg == "-isysroot" and e.arguments[i + 1] then
@@ -545,73 +540,55 @@ rule("embedded.compdb")
                     table.insert(result, v.entry)
                 end
 
-                -- 6. Generate header entries with platform awareness
+                -- 6. Generate header entries (all host-classified)
+                --
+                -- clangd uses source file (.cc) flags when analyzing headers via #include.
+                -- Header compdb entries are only used as fallback when a header is opened
+                -- directly. For this fallback, host flags with all project -I paths provide
+                -- the best coverage. ARM-specific headers (inline asm, etc.) are correctly
+                -- analyzed via the source entry's --target= when reached through #include.
                 local hdr_seen = {}
-                local hdr_counts = {host = 0, cross = 0}
+                local hdr_count = 0
                 for _, dir in ipairs(inc_dirs) do
                     if not os.isdir(dir) then goto next_dir end
                     for _, hdr in ipairs(os.files(path.join(dir, "**.hh"))) do
                         if hdr_seen[hdr] then goto next_hdr end
                         hdr_seen[hdr] = true
 
-                        local meta = classify_header(hdr, file_meta, target_meta)
-                        if meta then
-                            local args = {host_clang, "--target=" .. meta.triple, "-nostdinc++"}
-                            for _, sysdir in ipairs(meta.sysincludedirs) do
-                                table.insert(args, "-isystem")
-                                table.insert(args, sysdir)
-                            end
-                            for _, incdir in ipairs(meta.includedirs) do
-                                table.insert(args, "-I")
-                                table.insert(args, incdir)
-                            end
-                            table.insert(args, "-std=c++23")
-                            table.insert(args, "-x")
-                            table.insert(args, "c++-header")
-                            table.insert(args, hdr)
-                            table.insert(result, {directory = os.projectdir(), file = hdr, arguments = args})
-                            hdr_counts.cross = hdr_counts.cross + 1
-                        else
-                            local args = {host_clang}
-                            if host_isysroot then
-                                table.insert(args, "-isysroot")
-                                table.insert(args, host_isysroot)
-                            end
-                            for _, f in ipairs(inc_flag_list) do
-                                table.insert(args, f)
-                            end
-                            table.insert(args, "-std=c++23")
-                            table.insert(args, "-x")
-                            table.insert(args, "c++-header")
-                            table.insert(args, hdr)
-                            table.insert(result, {directory = os.projectdir(), file = hdr, arguments = args})
-                            hdr_counts.host = hdr_counts.host + 1
+                        local args = {host_clang}
+                        if host_isysroot then
+                            table.insert(args, "-isysroot")
+                            table.insert(args, host_isysroot)
                         end
+                        for _, f in ipairs(inc_flag_list) do
+                            table.insert(args, f)
+                        end
+                        table.insert(args, "-std=c++23")
+                        table.insert(args, "-x")
+                        table.insert(args, "c++-header")
+                        table.insert(args, hdr)
+                        table.insert(result, {directory = os.projectdir(), file = hdr, arguments = args})
+                        hdr_count = hdr_count + 1
 
                         ::next_hdr::
                     end
                     ::next_dir::
                 end
 
-                -- 7. Write single compdb
-                local compdb_dir = path.join(os.projectdir(), "build", "compdb")
-                os.mkdir(compdb_dir)
-                json.savefile(path.join(compdb_dir, "compile_commands.json"), result, {indent = 2})
+                -- 7. Write single compdb to project root (industry standard location)
+                local output_path = path.join(os.projectdir(), "compile_commands.json")
+                json_pretty_save(output_path, result)
 
-                -- 8. Clean up
+                -- 8. Clean up temp file and legacy locations
                 os.rm(compdb_path)
-                for _, name in ipairs({"host", "arm", "wasm"}) do
-                    local legacy_dir = path.join(compdb_dir, name)
-                    if os.isdir(legacy_dir) then
-                        os.rmdir(legacy_dir)
-                    end
+                local legacy_compdb_dir = path.join(os.projectdir(), "build", "compdb")
+                if os.isdir(legacy_compdb_dir) then
+                    os.rmdir(legacy_compdb_dir)
                 end
 
-                local total_hdrs = hdr_counts.host + hdr_counts.cross
-                print("compdb: %d entries (src: host=%d, arm=%d, wasm=%d | target-aware=%d | hdrs: host=%d, cross=%d, total=%d)",
+                print("compdb: %d entries (src: host=%d, arm=%d, wasm=%d | target-aware=%d | hdrs: %d)",
                       #result, counts["host"], counts["arm"], counts["wasm"] or 0,
-                      counts.cross_with_triple,
-                      hdr_counts.host, hdr_counts.cross, total_hdrs)
+                      counts.cross_with_triple, hdr_count)
 
             end, {dependfile = dependfile,
                   files = table.join(project.allfiles(), config.filepath()),

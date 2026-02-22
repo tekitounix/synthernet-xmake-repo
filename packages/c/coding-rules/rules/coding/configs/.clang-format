@@ -23,9 +23,6 @@ IncludeCategories:
     Priority: 1
   - Regex: "^<[a-z0-9_]+>$"
     Priority: 2
-  - Regex: "^<umicore/"
-    Priority: 3
-  - Regex: "^<umi[a-z]+/"
-    Priority: 4
+  # Project-specific library categories can be added here (Priority 3-4)
   - Regex: '^".*"'
     Priority: 5
