@@ -139,9 +139,13 @@ xmake-repo/synthernet/packages/p/phc/
 │           ├── provider_http.lua      ← HTTP Direct Provider
 │           ├── checker.lua            ← リンク切れ + バージョン検知
 │           ├── validator.lua          ← registry ↔ xmake.lua 整合性
-│           └── reporter.lua           ← 出力 (JSON, stdout)
+│           ├── generator.lua          ← xmake.lua 生成エンジン
+│           ├── updater.lua            ← update-package ロジック (DL + SHA256)
+│           ├── reporter.lua           ← 出力 (JSON, stdout)
+│           ├── install_toolchain_archive.lua  ← toolchain-archive テンプレート
+│           └── install_binary_app.lua ← binary-app テンプレート
 └── registry/
-    └── packages.lua                   ← データ定義 (Single Source of Truth)
+    └── packages.lua                   ← データ定義 (Single Source of Truth, スキーマ v2)
 ```
 
 > **Note:** xmake `import()` の同ディレクトリ解決により、`modules/` 内は
@@ -173,8 +177,22 @@ xmake-repo/synthernet/packages/p/phc/
            ▼                        ▼
 ┌──────────────────────────────────────────────┐
 │  registry.lua                                 │
-│  packages.lua ← Single Source of Truth        │
-└──────────────────────────────────────────────┘
+│  packages.lua ← Single Source of Truth (v2)   │
+└──────────────┬───────────────────────────────┘
+               │
+        ┌──────┴──────┐
+        ▼             ▼
+┌──────────────┐ ┌──────────────┐
+│ generator.lua │ │ updater.lua  │
+│ xmake.lua生成  │ │ DL+SHA256    │
+└──────┬───────┘ └──────┬───────┘
+       │                │
+       ▼                ▼
+┌──────────────────────────────┐
+│  install_*.lua                │
+│  (toolchain_archive,          │
+│   binary_app)                 │
+└──────────────────────────────┘
                │
                ▼
 ┌──────────────────────┐
@@ -212,7 +230,7 @@ xmake phc check-links   ← 即使用可能
 ```lua
 {
     _meta = {
-        schema_version = 1,
+        schema_version = 2,
         description = "synthernet package registry for health check"
     },
     ["clang-arm"] = {

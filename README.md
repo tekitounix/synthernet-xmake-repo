@@ -1,6 +1,6 @@
-# ARM Embedded XMake Repository
+# Synthernet XMake Repository
 
-A custom xmake package repository for ARM embedded development.
+A custom xmake package repository for ARM embedded development and C++ coding standards.
 
 ## Package Architecture
 
@@ -10,10 +10,11 @@ A custom xmake package repository for ARM embedded development.
 xmake-repo/synthernet/           -- Source of truth (git-managed)
   packages/a/arm-embedded/
     rules/embedded/xmake.lua     -- Embedded build rule
-    rules/embedded/modules/      -- Lua modules (launch_generator etc.)
     rules/embedded/database/     -- MCU/core/toolchain JSON databases
     rules/vscode/xmake.lua       -- VSCode integration rule
+    rules/compdb/xmake.lua       -- compile_commands.json rule
     plugins/flash/xmake.lua      -- Flash task
+    plugins/test/xmake.lua       -- Test runner task
     ...
         |
         | xmake require --force arm-embedded
@@ -33,16 +34,43 @@ xmake-repo/synthernet/           -- Source of truth (git-managed)
 
 ### Installed Locations
 
+#### arm-embedded
+
 | Source | Installed to | Loaded by |
 |--------|-------------|-----------|
-| `rules/embedded/xmake.lua` | `~/.xmake/rules/embedded/xmake.lua` | `add_rules("embedded")` |
+| `rules/embedded/xmake.lua` | `~/.xmake/rules/embedded/` | `add_rules("embedded")` |
 | `rules/embedded/database/*.json` | `~/.xmake/rules/embedded/database/` | Rule `on_load()` |
-| `rules/embedded/modules/*.lua` | `~/.xmake/rules/embedded/modules/` | `import("modules.xxx")` |
 | `rules/embedded/linker/common.ld` | `~/.xmake/rules/embedded/linker/` | Linker |
 | `rules/vscode/xmake.lua` | `~/.xmake/rules/embedded.vscode/` | `add_deps("embedded.vscode")` |
+| `rules/vscode/modules/*.lua` | `~/.xmake/rules/embedded.vscode/modules/` | `import("modules.xxx")` |
+| `rules/compdb/xmake.lua` | `~/.xmake/rules/embedded.compdb/` | `add_rules("embedded.compdb")` |
+| `rules/embedded.test/xmake.lua` | `~/.xmake/rules/embedded.test/` | `add_rules("embedded.test")` |
+| `rules/firmware/xmake.lua` | `~/.xmake/rules/firmware/` | `add_rules("firmware")` |
 | `rules/host.test/xmake.lua` | `~/.xmake/rules/host.test/` | `add_rules("host.test")` |
+| `rules/umios.firmware/xmake.lua` | `~/.xmake/rules/umios.firmware/` | `add_rules("umios.firmware")` |
 | `plugins/flash/xmake.lua` | `~/.xmake/plugins/flash/` | `xmake flash` |
-| `plugins/debug/xmake.lua` | `~/.xmake/plugins/debug/` | `xmake debug` |
+| `plugins/test/xmake.lua` | `~/.xmake/plugins/test/` | `xmake test` |
+| `plugins/compdb/xmake.lua` | `~/.xmake/plugins/compdb/` | `xmake compdb` |
+| `claude/` | `~/.xmake/rules/embedded/claude/` | Claude Code integration |
+| `scripts/` | `~/.xmake/rules/embedded/scripts/` | pyocd_tool.py etc. |
+
+#### coding-rules
+
+| Source | Installed to | Loaded by |
+|--------|-------------|-----------|
+| `rules/coding/xmake.lua` | `~/.xmake/rules/coding/` | `add_rules("coding.style")` |
+| `rules/coding/configs/` | `~/.xmake/rules/coding/configs/` | `.clang-format` etc. templates |
+| `rules/testing/xmake.lua` | `~/.xmake/rules/testing/` | `add_rules("coding.test")` |
+| `plugins/format/` | `~/.xmake/plugins/format/` | `xmake format` |
+| `plugins/lint/` | `~/.xmake/plugins/lint/` | `xmake lint` |
+| `plugins/coding-format/` | `~/.xmake/plugins/coding-format/` | `xmake coding-format` |
+| `plugins/coding-check/` | `~/.xmake/plugins/coding-check/` | `xmake coding-check` |
+| `plugins/format-headers/` | `~/.xmake/plugins/format-headers/` | `xmake format-headers` |
+| `plugins/setup-claude/` | `~/.xmake/plugins/setup-claude/` | `xmake setup-claude` |
+| `claude/` | `~/.xmake/rules/coding/claude/` | Claude Code integration |
+| `scripts/` | `~/.xmake/rules/coding/scripts/` | Shared Lua modules |
+
+Note: `rule_name_map` transforms source directory names: `vscode` → `embedded.vscode`, `compdb` → `embedded.compdb`.
 
 ## Development Guide
 
@@ -91,11 +119,15 @@ xmake require --force arm-embedded
 xmake build <target>
 ```
 
+**Note:** `xmake dev-sync` supports `arm-embedded` and `coding-rules` only.
+For the `phc` package, use `xmake require --force phc`.
+
 ### When to Use Which
 
 | Scenario | Method |
 |----------|--------|
-| Editing rules/plugins during development | `xmake dev-sync` |
+| Editing arm-embedded/coding-rules during development | `xmake dev-sync` |
+| Editing phc package | `xmake require --force phc` |
 | Validating before release | `xmake require --force arm-embedded` |
 | CI / fresh environment | `xmake require arm-embedded` (normal install) |
 | Debugging install issues | Delete `~/.xmake/rules/embedded/` + `xmake require --force` |
@@ -113,6 +145,24 @@ xmake build <target>
 **"ARM Embedded: Removed stale compile_commands.json" message:**
 - This was a legacy bug (toolchain-mismatch check deleted root compile_commands.json).
 - Fixed: the check was removed from the embedded rule. If you still see this, run `xmake dev-sync`.
+
+## Packages
+
+| Package | Type | Description |
+|---------|------|-------------|
+| `arm-embedded` | meta | ARM embedded build automation (rules, plugins, databases). Depends on `clang-arm` and `gcc-arm` |
+| `coding-rules` | meta | C++ code formatting, static analysis, and testing automation |
+| `phc` | meta | Package Health Check — URL/version monitoring for external packages |
+| `clang-arm` | toolchain | ARM LLVM Embedded Toolchain for Arm |
+| `gcc-arm` | toolchain | ARM GNU Toolchain (GCC) |
+| `renode` | binary | Renode hardware emulator |
+| `pyocd` | binary | PyOCD debug probe interface (python3 + venv) |
+| `python3` | binary | System Python venv wrapper |
+| `umibench` | library (headeronly) | UMI benchmark framework |
+| `umimmio` | library (headeronly) | MMIO abstraction layer |
+| `umiport` | library | Platform infrastructure |
+| `umirtm` | library (headeronly) | RTT monitor |
+| `umitest` | library (headeronly) | Test framework |
 
 ## License
 
