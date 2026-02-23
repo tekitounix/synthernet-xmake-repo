@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# claude-hook: event=PostToolUse matcher=run_tests
+# claude-hook: event=PostToolUse matcher=.*run_tests|Bash
 """PostToolUse hook: update tested snapshot after successful test run.
 
 Triggered by:
