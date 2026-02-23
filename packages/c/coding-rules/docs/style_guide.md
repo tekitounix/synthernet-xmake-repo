@@ -29,11 +29,13 @@ C++プロジェクトのコーディングスタイル規則を定義します�
 | 要素 | 規則 | 例 |
 |------|------|-----|
 | **ローカル変数** | `snake_case` | `int buffer_size = calculate_optimal_size();` |
-| **メンバー変数** | `snake_case` | `std::string device_identifier;` |
-| **private メンバー** | `snake_case` | `mutable std::mutex connection_mutex;` |
+| **メンバー変数** | `snake_case`（プレフィックス/サフィックスなし） | `std::string device_identifier;` |
+| **private メンバー** | `snake_case`（`m_` や `_` サフィックスは禁止） | `mutable std::mutex connection_mutex;` |
 | **protected メンバー** | `snake_case` | `std::vector<Handler> event_handlers;` |
 | **public メンバー** | `snake_case` | `const DeviceInfo device_info;` |
 | **関数パラメータ** | `snake_case` | `void send_message(const Message& midi_message);` |
+
+> **Note:** メンバー変数にプレフィックス (`m_`) やサフィックス (`_`) を使用しない。曖昧さの解消には `this->` を使用する。
 | **ポインタパラメータ** | `snake_case` | `void process_data(const uint8_t* input_buffer);` |
 
 ### 定数・静的変数
@@ -46,7 +48,7 @@ C++プロジェクトのコーディングスタイル規則を定義します�
 | **constパラメータ** | `snake_case` | `void configure(const int sample_rate);` |
 | **静的変数** | `snake_case` | `static std::atomic<int> active_connections{0};` |
 | **グローバル変数** | `snake_case` | `std::unique_ptr<Logger> global_logger;` |
-| **constexpr変数** | `snake_case` | `inline constexpr bool is_debug_build = false;` |
+| **constexpr変数** | `snake_case` | `constexpr bool is_debug_build = false;` |
 | **constexprグローバル** | `snake_case` | `constexpr int max_channels = 16;` |
 | **constexprメンバー** | `snake_case` | `static constexpr size_t default_size = 1024;` |
 
@@ -77,7 +79,7 @@ C++プロジェクトのコーディングスタイル規則を定義します�
 
 ### const vs constexpr の命名規則
 - **const定数**: `UPPER_CASE` - 実行時に決まる定数値
-- **constexpr変数**: `snake_case` - コンパイル時に決まる値（変数扱い）
+- **constexpr変数**: `snake_case` - コンパイル時に決まる値（変数扱い）。`constexpr` のみ使用し、冗長な `inline constexpr` は書かない（C++17 以降は暗黙的に inline）
 - **#define定数**: `UPPER_CASE` - プリプロセッサマクロ
 
 ## コードフォーマット
@@ -86,7 +88,7 @@ clang-formatにより自動的に以下のスタイルが適用されます：
 
 - **基本スタイル**: LLVM（モダンな修正を加えて）
 - **インデント**: 4スペース
-- **行の長さ**: 100文字
+- **行の長さ**: 120文字
 - **ポインタ位置**: 左寄せ（`int* ptr`）
 - **パラメータパッキング**: 無効（読みやすさのため）
 
@@ -104,7 +106,7 @@ clang-formatにより自動的に以下のスタイルが適用されます：
 - `.clang-tidy`: 命名規則と静的解析のルール
 - `.clangd`: LSPサーバー（clangd）の設定
 
-これらはcoding_rulesディレクトリ内の実体を参照しています。
+これらは `coding-rules` パッケージの `rules/coding/configs/` ディレクトリ内のテンプレートから生成される。
 
 ## IDE統合
 

@@ -14,29 +14,33 @@ apt install clang-format clang-tidy
 
 ## ビルド時の自動チェック
 
-### coding.rulesルール
+### coding.style ルール（後方互換用 no-op）
 
-xmakeビルドシステムに統合された`coding.rules`により、ビルド時に自動的に以下が実行されます：
-
-1. **clang-format**によるコードの自動フォーマット
-2. **clang-tidy**による命名規則の自動修正
-3. ソースファイル（.cc）とヘッダーファイル（.hh）の両方を処理
+> **Note:** Phase 7 で `before_build` が削除され、ビルド時の自動フォーマット・チェックは廃止。
+> 代わりに `xmake format` / `xmake lint` / `xmake coding-check` を使用すること。
 
 ```lua
--- xmake.luaでの設定
-add_rules("coding.rules")
+-- xmake.lua での設定（後方互換用、実質 no-op）
+add_rules("coding.style")
 ```
 
-### CI/CD用チェックモード
+### 推奨される品質チェックコマンド
 
-CIパイプラインでは自動修正を無効にしてチェックのみを行います：
+```bash
+# フォーマット
+xmake format                     # lib/ + examples/ を自動フォーマット
+xmake coding-format              # プロジェクト全体を自動フォーマット
 
-```lua
--- CI用の設定
-add_rules("coding.rules.ci")
+# 静的解析
+xmake lint                       # clang-tidy 実行
+xmake lint --fix                 # 自動修正
+xmake lint --changed             # git 変更ファイルのみ
+
+# 統合チェック
+xmake coding-check               # format + lint
+xmake coding-check --full        # format + lint + build
+xmake coding-check --ci          # CI モード（dry-run）
 ```
-
-このモードでは、スタイル違反があるとビルドが失敗します。
 
 ## Pre-commitフック
 
@@ -77,21 +81,25 @@ chmod +x .git/hooks/pre-commit
 ### フォーマットチェック
 
 ```bash
-# フォーマットをチェック（変更なし）
-clang-format --dry-run --Werror include/**/*.{cc,hh}
+# xmake タスク経由（推奨）
+xmake format --dry-run                    # チェックのみ
+xmake format                              # フォーマット適用
 
-# フォーマットを適用
-clang-format -i include/**/*.{cc,hh}
+# clang-format 直接実行
+clang-format --dry-run --Werror src/**/*.{cc,hh}
+clang-format -i src/**/*.{cc,hh}
 ```
 
 ### 命名規則チェック
 
 ```bash
-# 命名規則をチェック
-clang-tidy include/**/*.{cc,hh} --config-file=coding_rules/.clang-tidy
+# xmake タスク経由（推奨）
+xmake lint                                # 全ソースチェック
+xmake lint --fix                          # 自動修正
 
-# 命名規則を自動修正
-clang-tidy include/**/*.{cc,hh} --config-file=coding_rules/.clang-tidy --fix
+# clang-tidy 直接実行
+clang-tidy src/**/*.{cc,hh} -p build/compdb/compile_commands.json
+clang-tidy src/**/*.{cc,hh} -p build/compdb/compile_commands.json --fix
 ```
 
 ## 静的解析とサニタイザ
@@ -131,20 +139,17 @@ clang-tidy src/*.cc --checks='-*,\
 - **適用対象**: ライブラリ、カーネルデータ構造テスト
 
 ```lua
--- xmake.lua - 統合設定
-option("static_analysis")
-    set_default(false)
-    set_description("静的解析を有効化")
+-- xmake.lua - coding.test ルール使用（推奨）
+target("my_test")
+    add_rules("coding.test")
+    set_values("testing.sanitizers", {"address", "undefined"})
+    add_files("test/*.cc")
 
-option("host_test")
-    set_default(false) 
-    set_description("ホスト環境でのサニタイザテスト")
-
-target("my_library")
-    if has_config("host_test") then
-        add_cxflags("-fsanitize=address,undefined", {tools = {"clang", "gcc"}})
-        add_ldflags("-fsanitize=address,undefined", {tools = {"clang", "gcc"}})
-    end
+-- coding.test ルールは以下を自動設定:
+-- - デバッグシンボル有効化
+-- - -Wall -Wextra -Wpedantic -Werror
+-- - TEST_BUILD 定義
+-- - サニタイザフラグ（ホストビルド時のみ）
 ```
 
 ### インクルード最適化
