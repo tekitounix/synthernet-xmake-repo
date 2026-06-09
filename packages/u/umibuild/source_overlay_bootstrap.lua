@@ -15,14 +15,18 @@ local function source_path(value)
     return path.join(os.projectdir(), value)
 end
 
+local function fail(message)
+    error(message, 2)
+end
+
 local umi_source = source_path(os.getenv("UMI_SOURCE"))
 if umi_source == nil then
-    assert(false, "umibuild source-overlay bootstrap requires UMI_SOURCE")
+    fail("umibuild source-overlay bootstrap requires UMI_SOURCE")
 end
 
 local umibuild_root = path.join(umi_source, "build-rules", "umibuild")
 if not os.isdir(umibuild_root) then
-    assert(false, "UMI_SOURCE does not contain build-rules/umibuild: " .. umi_source)
+    fail("UMI_SOURCE does not contain build-rules/umibuild: " .. umi_source)
 end
 
 includes(path.join(umibuild_root, "modules", "app_composer.lua"))

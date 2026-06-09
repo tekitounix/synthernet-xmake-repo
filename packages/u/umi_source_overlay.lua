@@ -6,6 +6,14 @@ local function joined(root, segments)
     return result
 end
 
+local function fail(fmt, ...)
+    local msg = fmt
+    if select("#", ...) > 0 then
+        msg = string.format(fmt, ...)
+    end
+    error(msg, 2)
+end
+
 function umi_source_overlay_package(name, segments, opts)
     opts = opts or {}
     local release = opts.release or {}
@@ -51,7 +59,7 @@ function umi_source_overlay_package(name, segments, opts)
                             return source
                         end
                     end
-                    raise("UMI_SOURCE does not contain %s: %s", table.concat(segments, "/"), env_root)
+                    fail("UMI_SOURCE does not contain %s: %s", table.concat(segments, "/"), env_root)
                 end
 
                 for _, dir_name in ipairs(opts.copy_dirs or {"include"}) do
@@ -69,7 +77,7 @@ function umi_source_overlay_package(name, segments, opts)
                         end
                     end
                 end
-                raise("%s source root not found", name)
+                fail("%s source root not found", name)
             end
 
             local source = package_source_root()
@@ -89,7 +97,7 @@ function umi_source_overlay_package(name, segments, opts)
                 end
             end
             if not copied then
-                raise("%s install payload not found", name)
+                fail("%s install payload not found", name)
             end
         end)
 
