@@ -33,7 +33,7 @@ xmake-repo/synthernet/           -- Source of truth (git-managed)
 - Source edits require either `xmake require --force` or `xmake dev-sync` to take effect
 - `arm-embedded` installs generic embedded rules only. Toolchains are explicit
   consumer dependencies, UMI-specific rules live in `umibuild`, and AI agent
-  adapters are owned by ai-ops / consuming projects, not this provider package.
+  adapters are owned by tazuna / consuming projects, not this provider package.
 
 ### Installed Locations
 
