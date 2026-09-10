@@ -6,7 +6,7 @@ package("umibuild")
     set_kind("library")
 
     if os.getenv("UMI_SOURCE") then
-        add_versions("dev", "dummy")
+        add_versions("0.0.0-dev", "dummy")
     else
         add_urls("https://github.com/tekitounix/synthernet-xmake-repo/releases/download/umibuild-v$(version)/umibuild-$(version).tar.gz")
         add_versions("0.3.1", "518486ac6710e49cce625d3fa4a11a1de3e8381592939c76a31f76ba381270f3")

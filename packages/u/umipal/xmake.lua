@@ -6,7 +6,7 @@ package("umipal")
     set_kind("library", {headeronly = true})
 
     if os.getenv("UMIPAL_SOURCE") then
-        add_versions("dev", "dummy")
+        add_versions("0.0.0-dev", "dummy")
         add_versions("1.0.0", "dummy")
         add_versions("1.1.0", "dummy")
         add_versions("2.3.0", "dummy")

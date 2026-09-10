@@ -31,7 +31,10 @@ function umi_source_overlay_package(name, segments, opts)
         end
 
         if os.getenv("UMI_SOURCE") then
-            add_versions("dev", "dummy")
+            -- xmake 3.1 validates every package version as semver. Keep the
+            -- source-overlay channel explicit while using a valid prerelease
+            -- identifier instead of the historical bare `dev` label.
+            add_versions("0.0.0-dev", "dummy")
             for version, _sha in pairs(release_versions) do
                 add_versions(version, "dummy")
             end

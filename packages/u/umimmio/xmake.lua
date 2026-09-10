@@ -6,7 +6,7 @@ package("umimmio")
     set_kind("library", {headeronly = true})
 
     if os.getenv("UMI_SOURCE") then
-        add_versions("dev", "dummy")
+        add_versions("0.0.0-dev", "dummy")
         add_versions("0.3.0", "dummy")
     else
         add_urls("https://github.com/tekitounix/umimmio/releases/download/v$(version)/umimmio-$(version).tar.gz")

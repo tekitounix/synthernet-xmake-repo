@@ -6,7 +6,7 @@ package("umitest")
     set_kind("library", {headeronly = true})
 
     if os.getenv("UMI_SOURCE") then
-        add_versions("dev", "dummy")
+        add_versions("0.0.0-dev", "dummy")
         add_versions("0.2.1", "dummy")
     else
         add_urls("https://github.com/tekitounix/umitest/releases/download/v$(version)/umitest-$(version).tar.gz")
