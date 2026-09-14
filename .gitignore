@@ -13,3 +13,6 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+# tazuna:packages:begin
+/.tazuna/packages/
+# tazuna:packages:end
