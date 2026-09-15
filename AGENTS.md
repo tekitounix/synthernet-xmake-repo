@@ -17,7 +17,7 @@ package definition の変更は、source-level check と対象 consumer の isol
 
 Use only the relevant rules and Skills at these immutable paths.
 Resolve normative tazuna://SOURCE/PATH references using this snapshot's source mapping.
-- github.com/tekitounix/okite @ 9c27dc1cbc89e7ffc59bdd5928f102241cfc288e: `.tazuna/packages/objects/8b2e61d01e55a34cfd19/9c27dc1cbc89e7ffc59bdd5928f102241cfc288e`; rules: docs
+- github.com/tekitounix/okite @ 9f45a1985a30f6a73b01adf7184b5e1070651ff7: `.tazuna/packages/objects/8b2e61d01e55a34cfd19/9f45a1985a30f6a73b01adf7184b5e1070651ff7`; rules: docs
 Reference-only Skills are not registered as project commands. Shared Skills use their separately installed machine edition; explicit project-version reads use the paths above.
 
 The instruction bodies below are already supplied. Do not reopen their source files solely to read the same instructions.
@@ -33,6 +33,7 @@ Generated from the fixed package above; edit the source, not this block.
 - AIの利用枠は現行accountを読むhost標準機能を優先し、横断比較や明示quotaにはusage-statusの対応分岐を使う。残量観測と開始判定を区別し、未確認・推定・取得失敗を確定値にしない。無関係な作業で毎回取得しない。
 - プロジェクト固有の配置・検証規則を適用する。配布やテストの成功を、モデルの指示遵守や依頼全体の完了と同一視しない。
 - 固有名は正本または利用者が示した正式表記を使い、独自の略称や推測を加えない。製品名と実在path・code識別子・正確なtask titleを区別する（詳細は`docs/output-language.md`）。
+- Markdown対応の人向け本文の参照URLは説明ラベル付きlinkにする。code・command・schema値・引用・指定された生URL・host固有形式は保つ（詳細は`docs/output-language.md`）。
 - シークレットは .env の FIFO マウントまたは op run 経由でプロセスに渡す。値をシェルに出力しない。cat .env、printenv、env、op read、op item get を実行しない。
 - 変数名の確認は MCP の list_variables で行う。値の確認は人間に依頼する。
 - Environments への変数追加や接続先 URL の変更は、人間の承認なしに行わない。
