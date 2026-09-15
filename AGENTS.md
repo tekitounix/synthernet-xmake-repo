@@ -17,7 +17,7 @@ package definition の変更は、source-level check と対象 consumer の isol
 
 Use only the relevant rules and Skills at these immutable paths.
 Resolve normative tazuna://SOURCE/PATH references using this snapshot's source mapping.
-- github.com/tekitounix/okite @ 46131f9251157ae47da24e3e3e512ab252464d20: `.tazuna/packages/objects/8b2e61d01e55a34cfd19/46131f9251157ae47da24e3e3e512ab252464d20`; rules: docs
+- github.com/tekitounix/okite @ 584fdb83af91d35a4f3ef5032ea6d04ccdbd1dec: `.tazuna/packages/objects/8b2e61d01e55a34cfd19/584fdb83af91d35a4f3ef5032ea6d04ccdbd1dec`; rules: docs
 Reference-only Skills are not registered as project commands. Shared Skills use their separately installed machine edition; explicit project-version reads use the paths above.
 
 The instruction bodies below are already supplied. Do not reopen their source files solely to read the same instructions.
