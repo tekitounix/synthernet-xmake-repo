@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "required_paths": ["README.md", "AGENTS.md", "docs/purpose.md", "docs/document-tree.md", "docs/PACKAGE_HEALTH_CHECK_SPEC.md", ".gitignore", ".tazuna/tree-contract.json"],
-  "allowed_tracked_root": [".gitignore", ".tazuna", "AGENTS.md", "CLAUDE.md", "README.md", "docs", "packages", "plans"],
+  "allowed_tracked_root": [".gitignore", ".tazuna", "AGENTS.md", "README.md", "docs", "packages", "plans"],
   "allowed_docs_root_files": ["purpose.md", "document-tree.md", "PACKAGE_HEALTH_CHECK_SPEC.md"],
   "plans_layout": "group-slug",
   "interior_anti_patterns": {
