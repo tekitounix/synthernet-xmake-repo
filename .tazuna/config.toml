@@ -1,9 +1,0 @@
-schema_version = 1
-
-[[packages]]
-source = "github.com/tekitounix/okite"
-revision = "584fdb83af91d35a4f3ef5032ea6d04ccdbd1dec"
-rules = ["docs"]
-skills = "skills"
-default_publication = "none"
-instructions = ["docs/agent-instructions.md"]
