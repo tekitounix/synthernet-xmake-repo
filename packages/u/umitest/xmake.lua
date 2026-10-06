@@ -7,10 +7,10 @@ package("umitest")
 
     if os.getenv("UMI_SOURCE") then
         add_versions("dev", "dummy")
-        add_versions("0.2.1", "dummy")
+        add_versions("0.2.2", "dummy")
     else
         add_urls("https://github.com/tekitounix/umitest/releases/download/v$(version)/umitest-$(version).tar.gz")
-        add_versions("0.2.1", "09804c5dfbd15984eef84f09a8298cd26230ff530a74bfb0403945803fd3d2a8")
+        add_versions("0.2.2", "8263cef37e59b094811a167abaf1f6975a1c433052b464489756d21b3bff0a1f")
     end
 
     on_install(function(package)
