@@ -7,10 +7,10 @@ package("umimmio")
 
     if os.getenv("UMI_SOURCE") then
         add_versions("dev", "dummy")
-        add_versions("0.3.0", "dummy")
+        add_versions("0.4.0", "dummy")
     else
         add_urls("https://github.com/tekitounix/umimmio/releases/download/v$(version)/umimmio-$(version).tar.gz")
-        add_versions("0.3.0", "fed75d34aae34c2993533bb81a3f85ccf65b4024a0dc12bca4d14b53e25812f4")
+        add_versions("0.4.0", "192dbcf98ddd0e8e81e98e9043311ea5065e08c5317f4bd006d4e6b354f39b02")
     end
 
     on_install(function(package)
